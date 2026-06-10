@@ -2,125 +2,255 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nachimbong OLED Fix</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Nachimbong OLED Studio</title>
     <style>
-        body { font-family: sans-serif; text-align: center; background: #111; color: #eee; }
-        canvas { border: 2px solid #ed1c24; background: #000; touch-action: none; width: 256px; height: 256px; image-rendering: pixelated; }
-        .controls { margin: 20px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
-        button { padding: 15px 30px; font-weight: bold; border-radius: 25px; border: none; cursor: pointer; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            text-align: center;
+            background: #0a0a0a;
+            color: #eee;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h2 { color: #ed1c24; margin-bottom: 15px; font-size: 1.3rem; }
+        #canvas {
+            border: 2px solid #333;
+            background: #000;
+            width: 256px;
+            height: 256px;
+            image-rendering: pixelated;
+            touch-action: none;
+            margin-bottom: 15px;
+        }
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+            width: 100%;
+            max-width: 300px;
+        }
+        button, label.file-label {
+            width: 100%;
+            padding: 14px;
+            font-weight: bold;
+            border-radius: 25px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: opacity 0.2s;
+            text-align: center;
+        }
         #sendBtn { background: #ed1c24; color: white; }
         #clearBtn { background: #444; color: white; }
-        #status { color: #888; font-size: 0.9em; margin-top: 10px; }
+        label.file-label {
+            background: #1e90ff;
+            color: white;
+            display: inline-block;
+        }
+        input[type="file"] { display: none; }
+        #status {
+            color: #888;
+            font-size: 0.85em;
+            margin-top: 10px;
+            min-height: 20px;
+        }
+        .hint {
+            color: #666;
+            font-size: 0.75rem;
+            margin-top: 5px;
+            max-width: 260px;
+            line-height: 1.3;
+        }
     </style>
 </head>
 <body>
 
-    <h3>Nachimbong OLED Studio</h3>
-    
+    <h2>Nachimbong OLED Studio</h2>
+
     <canvas id="canvas" width="128" height="128"></canvas>
 
     <div class="controls">
-        <button id="sendBtn">ENVIAR AL NACHIMBONG</button>
-        <button id="clearBtn">LIMPIAR</button>
-        <div id="status">Esperando conexión técnica...</div>
+        <label class="file-label" for="imgInput">📁 SUBIR IMAGEN</label>
+        <input type="file" id="imgInput" accept="image/png, image/jpeg, image/jpg">
+
+        <button id="clearBtn">🧹 LIMPIAR</button>
+        <button id="sendBtn">📡 ENVIAR AL NACHIMBONG</button>
+        
+        <div id="status">Listo. Dibuja o sube una imagen.</div>
+        <div class="hint">
+            Sube cualquier imagen y se convertirá a 128×128 blanco y negro automáticamente. También puedes dibujar encima.
+        </div>
     </div>
 
     <script>
         const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
         const status = document.getElementById('status');
+        const imgInput = document.getElementById('imgInput');
         let isDrawing = false;
 
-        // Recuperar imagen guardada al estilo "reinicio" original
+        // Restaurar imagen guardada (sin recargar la pagina manualmente)
         const savedImg = localStorage.getItem('last_oled_img');
         if (savedImg) {
             const img = new Image();
-            img.onload = () => ctx.drawImage(img, 0, 0);
+            img.onload = () => ctx.drawImage(img, 0, 0, 128, 128);
             img.src = savedImg;
         }
 
-        // Dibujo básico
-        canvas.addEventListener('pointerdown', () => isDrawing = true);
+        // --- DIBUJO CON EL DEDO/RATON ---
+        function getPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return {
+                x: (clientX - rect.left) * (128 / rect.width),
+                y: (clientY - rect.top) * (128 / rect.height)
+            };
+        }
+
+        canvas.addEventListener('pointerdown', (e) => {
+            isDrawing = true;
+            draw(e);
+        });
         window.addEventListener('pointerup', () => {
-            isDrawing = false;
-            localStorage.setItem('last_oled_img', canvas.toDataURL());
+            if (isDrawing) {
+                isDrawing = false;
+                saveCanvas();
+            }
         });
         canvas.addEventListener('pointermove', draw);
 
         function draw(e) {
             if (!isDrawing) return;
             ctx.fillStyle = "white";
-            const rect = canvas.getBoundingClientRect();
-            const x = (e.clientX - rect.left) * (128 / rect.width);
-            const y = (e.clientY - rect.top) * (128 / rect.height);
+            const pos = getPos(e);
             ctx.beginPath();
-            ctx.arc(x, y, 4, 0, Math.PI * 2);
+            ctx.arc(pos.x, pos.y, 3, 0, Math.PI * 2);
             ctx.fill();
         }
 
+        function saveCanvas() {
+            localStorage.setItem('last_oled_img', canvas.toDataURL());
+        }
+
         document.getElementById('clearBtn').onclick = () => {
-            ctx.clearRect(0, 0, 128, 128);
+            ctx.fillStyle = "black";
+            ctx.fillRect(0, 0, 128, 128);
             localStorage.removeItem('last_oled_img');
+            status.innerText = "Lienzo limpiado.";
         };
 
-        // Lógica de envío "Original" detectada en el minificado
+        // --- SUBIR IMAGEN EXTERNA ---
+        imgInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    // Fondo negro primero
+                    ctx.fillStyle = "black";
+                    ctx.fillRect(0, 0, 128, 128);
+
+                    // Dibujar imagen escalada a 128x128 centrada
+                    const scale = Math.min(128 / img.width, 128 / img.height);
+                    const w = img.width * scale;
+                    const h = img.height * scale;
+                    const x = (128 - w) / 2;
+                    const y = (128 - h) / 2;
+                    ctx.drawImage(img, x, y, w, h);
+
+                    // Convertir a blanco y negro puro (umbral)
+                    const imgData = ctx.getImageData(0, 0, 128, 128);
+                    const data = imgData.data;
+                    for (let i = 0; i < data.length; i += 4) {
+                        const brightness = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
+                        const val = brightness > 100 ? 255 : 0; // Umbral ajustable
+                        data[i] = data[i+1] = data[i+2] = val;
+                    }
+                    ctx.putImageData(imgData, 0, 0);
+                    saveCanvas();
+                    status.innerText = "Imagen convertida a 128x128 OLED.";
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // --- ENVIO AL NACHIMBONG ---
         async function transferOled() {
-            status.innerText = "Preparando imagen...";
-            
-            // Convertir a 1-bit monochromo (SSD1306 Horizontal / Vertical Pack)
-            // Para evitar los "16 mini corazones", recorremos de forma que rellene la pantalla completa
+            status.innerText = "Preparando datos OLED...";
+
+            // Obtener píxeles
             const imgData = ctx.getImageData(0, 0, 128, 128).data;
-            let oledBytes = new Uint8Array(2048); 
-            
+            let oledBytes = new Uint8Array(2048);
+
+            // Conversión SSD1306 Page Addressing (el que ya funcionó)
             for (let y = 0; y < 128; y++) {
                 for (let x = 0; x < 128; x++) {
                     const idx = (y * 128 + x) * 4;
-                    if (imgData[idx] > 128) { // Si el píxel es blanco
+                    if (imgData[idx] > 128) { // Si es blanco
                         const byteIdx = (Math.floor(y / 8) * 128) + x;
                         oledBytes[byteIdx] |= (1 << (y % 8));
                     }
                 }
             }
 
-            // Enviar en bloques de 128 bytes (16 partes)
-            // Comando original detectado: 810F...
-            status.innerText = "Enviando... No cierres la app";
+            status.innerText = "Enviando... Mantén el dispositivo cerca.";
 
             for (let part = 0; part < 16; part++) {
                 const chunk = oledBytes.slice(part * 128, (part + 1) * 128);
                 const hexData = Array.from(chunk).map(b => b.toString(16).padStart(2, '0')).join('');
                 
-                // Formato de comando: 810F + totalImgs(4) + curImg(4) + part(2) + data + ,-
+                // Formato de comando original: 810F + totalImgs(8) + part(2) + data + ,-
                 const cmd = `810F00000000${part.toString(16).padStart(2, '0')}${hexData},-`;
-                
-                if (window.bridge) {
-                    window.bridge.bleSendCmdList(cmd);
-                } else if (window.webkit && window.webkit.messageHandlers) {
-                    window.webkit.messageHandlers.bleSendCmdList.postMessage(cmd);
+
+                try {
+                    if (window.bridge) {
+                        window.bridge.bleSendCmdList(cmd);
+                    } else if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.bleSendCmdList) {
+                        window.webkit.messageHandlers.bleSendCmdList.postMessage(cmd);
+                    }
+                } catch (err) {
+                    console.error("Error enviando parte", part, err);
                 }
 
-                status.innerText = `Enviando parte ${part+1} de 16...`;
-                // Delay para no saturar el bridge nativo
+                status.innerText = `Enviando parte ${part + 1} de 16...`;
                 await new Promise(r => setTimeout(r, 150));
             }
 
-            status.innerText = "¡Listo! Reiniciando...";
-            await new Promise(r => setTimeout(r, 1000));
+            status.innerText = "✅ ¡Enviado correctamente!";
             
-            // Simular el reinicio de la app oficial
-            if (window.bridge) window.bridge.bleDisconnect("");
-            location.reload();
+            // YA NO HAY location.reload() 
+            // Solo desconectamos suavemente si es necesario, pero sin recargar
+            setTimeout(() => {
+                try {
+                    if (window.bridge) window.bridge.bleDisconnect("");
+                } catch(e) {}
+                status.innerText = "Listo para enviar otra imagen.";
+            }, 1000);
         }
 
         document.getElementById('sendBtn').onclick = transferOled;
 
-        // Auto-conectar al cargar (como la app oficial)
-        window.onload = () => {
+        // Auto-emparejamiento suave al iniciar
+        window.addEventListener('load', () => {
             setTimeout(() => {
-                if (window.bridge) window.bridge.blePairingStart("");
-            }, 1000);
-        };
+                try {
+                    if (window.bridge) {
+                        window.bridge.blePairingStart("");
+                        status.innerText = "Emparejamiento iniciado...";
+                    }
+                } catch(e) {}
+            }, 800);
+        });
     </script>
 </body>
 </html>
