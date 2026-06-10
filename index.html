@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Nachimbong OLED Studio: STRAY CITY</title>
+    <title>Nachimbong OLED Studio</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -18,7 +18,6 @@
             align-items: center;
         }
         h2 { color: #ed1c24; margin-bottom: 5px; font-size: 1.2rem; }
-        p.subtitle { color: #888; font-size: 0.8rem; margin-bottom: 10px; }
         
         #canvas {
             border: 2px solid #ed1c24;
@@ -27,22 +26,20 @@
             height: 240px;
             image-rendering: pixelated;
             touch-action: none;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             border-radius: 5px;
         }
 
-        .gallery-label { font-size: 0.7rem; color: #666; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
         .gallery {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 8px;
             width: 100%;
             max-width: 320px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             background: #111;
             padding: 10px;
             border-radius: 12px;
-            border: 1px solid #333;
         }
         .gallery-item {
             aspect-ratio: 1;
@@ -54,12 +51,9 @@
             justify-content: center;
             cursor: pointer;
             font-size: 1.2rem;
-            transition: 0.1s;
             color: white;
-            font-weight: bold;
         }
-        .gallery-item.special { border-color: #ed1c24; color: #ed1c24; font-size: 0.7rem; }
-        .gallery-item:active { transform: scale(0.95); background: #222; }
+        .gallery-item.special { border-color: #ed1c24; color: #ed1c24; font-size: 0.7rem; font-weight: bold; }
 
         .controls {
             display: flex;
@@ -78,25 +72,20 @@
             cursor: pointer;
             font-size: 0.95rem;
         }
-        #sendBtn { background: #ed1c24; color: white; box-shadow: 0 4px 15px rgba(237, 28, 36, 0.3); }
-        #clearBtn { background: #222; color: #aaa; border: 1px solid #444; }
+        #sendBtn { background: #ed1c24; color: white; }
+        #reconnectBtn { background: #000; color: #ed1c24; border: 1px solid #ed1c24; padding: 8px; font-size: 0.7rem; border-radius: 10px; width: auto; margin-top: 5px; }
+        #clearBtn { background: #222; color: #aaa; }
         
-        #status {
-            color: #888;
-            font-size: 0.8em;
-            margin-top: 10px;
-            min-height: 20px;
-        }
+        #status { color: #888; font-size: 0.8em; margin-top: 10px; min-height: 20px; }
     </style>
 </head>
 <body>
 
     <h2>OLED Studio</h2>
-    <p class="subtitle">Personalización Nachimbong V2</p>
+    <button id="reconnectBtn" onclick="initBT()">🔄 RECONECTAR BLUETOOTH</button>
 
     <canvas id="canvas" width="128" height="128"></canvas>
 
-    <p class="gallery-label">Diseños Especiales:</p>
     <div class="gallery">
         <div class="gallery-item special" onclick="loadStrayCity()">CITY</div>
         <div class="gallery-item" onclick="loadIcon('❤️')">❤️</div>
@@ -105,36 +94,32 @@
         <div class="gallery-item" onclick="loadIcon('🔥')">🔥</div>
         <div class="gallery-item" onclick="loadIcon('👑')">👑</div>
         <div class="gallery-item" onclick="loadIcon('🐺')">🐺</div>
-        <div class="gallery-item" onclick="loadIcon('✨')">✨</div>
+        <div class="gallery-item" onclick="loadIcon('🎨')">🖌️</div>
     </div>
 
     <div class="controls">
         <button id="clearBtn" onclick="clearCanvas()">LIMPIAR LIENZO</button>
         <button id="sendBtn" onclick="transferOled()">ENVIAR A LA PANTALLA</button>
-        <div id="status">Toca "CITY" para cargar tu diseño...</div>
+        <div id="status">Iniciando Bluetooth...</div>
     </div>
 
     <script>
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         const status = document.getElementById('status');
-        let isDrawing = false; e;
+        let isDrawing = false;
 
-        // --- CARGA DE TU DISEÑO "STRAY CITY" ---
-        function loadStrayCity() {
-            clearCanvas();
-            const img = new Image();
-            img.onload = function() {
-                // Dibujamos la imagen centrada y escalada
-                const scale = Math.min(128 / img.width, 128 / img.height);
-                const x = (128 - img.width * scale) / 2;
-                const y = (128 - img.height * scale) / 2;
-                ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
-                saveCanvas();
-                status.innerText = "¡STRAY CITY cargado!";
-            };
-            // Esta es tu imagen convertida a código para que no necesites subirla
-            img.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAAAXNSR0IArs4c6QAAArVJREFUeF7t28tRBAEMRFFDCIzAKTAB52AM9pAExmAk7p2mO0A190vT2PZ6v6fX6XW6MvAnC/zJUve9DTAI/AmA78UAg0AnAL4XAwYBnQAAY0AHYADoAByAAaADcAAGgA7AAdABOAAH4ADcs8CO9/0+p/vT6f6NHz08p9OnY3AATidgB/D/CHAAfofYAbidp9N966fDAdidgB/A7Syd7ls/HQ7A7gT8AG5n6XTf+ulwAHYn4AdwO0un+9ZPhwOwOwE/gNtZOt23fjocgN0J+AHcztLpvvXT4QDsTsAP4HaWTvetnw4HYHcCfgC3s3S6b/10OAC7E/ADuJ2l033rp8MB2J2AH8DtLJ3uWz8dDsDuBPwAbmfpdN/66XAApwn8nZ/73tXp/nd6v73vunU4AAfg9MUC7Bv39v8I7ADuN7S96qfDATgAn4DtE7f9P2R2APdv2Hev+ulwAA7AJ2D7pG3/Z8vsAO7vsO9v/XQ4AAfgE7B98rb/59rsAO7f8PdWv344fToAn4BPAHw/BvA9O4D7DX1f9euH06cD8An4BMD3YwDfswO439D3Vb9+OH06AJ8ATAB8TwbwLTuA21m6Xz98On8F7ADuN7S96qfDAdidgB/A7Syd7ls/HQ7A7gT8AG5n6XTf+ulwAHYn4AdwO0un+9ZPhwOwOwE/gNtZOt23fjocgN0J+AHcztLpvvXT4QDsTsAP4HaWTvetnw4HYHcCfgC3s3S6b/10OAC7E/ADuJ2l033rp8MB2J2AH8DtLJ3uWz8dDsDuBPwAbmfpdN/66XAApwn8nd/73tXp/nd6v73vunU4AAfg9MUC7Bv39v+I4HSA6Q99v/9C9X9Yv347OYA/Cej76A96v6dfXb9vEOD7McAg0AmA78WAAXAAzoAOGADYnS/Tz+m+P50+XW6f/gAs76Y0B18X3QAAAABJRU5ErkJggg==";
+        function initBT() {
+            status.innerText = "Buscando Nachimbong...";
+            try {
+                if (window.bridge) {
+                    window.bridge.blePairingStart("");
+                } else if (window.webkit?.messageHandlers?.blePairingStart) {
+                    window.webkit.messageHandlers.blePairingStart.postMessage("");
+                }
+            } catch(e) {
+                status.innerText = "Error al conectar: " + e.message;
+            }
         }
 
         // --- DIBUJO ---
@@ -160,20 +145,29 @@
         function clearCanvas() { ctx.fillStyle = "black"; ctx.fillRect(0, 0, 128, 128); saveCanvas(); }
         function saveCanvas() { localStorage.setItem('last_oled_img', canvas.toDataURL()); }
 
+        function loadStrayCity() {
+            clearCanvas();
+            const img = new Image();
+            img.onload = function() {
+                const scale = Math.min(128 / img.width, 128 / img.height);
+                ctx.drawImage(img, (128 - img.width * scale) / 2, (128 - img.height * scale) / 2, img.width * scale, img.height * scale);
+                saveCanvas();
+                status.innerText = "CITY cargado. ¡Listo para enviar!";
+            };
+            img.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAAAXNSR0IArs4c6QAAArVJREFUeF7t28tRBAEMRFFDCIzAKTAB52AM9pAExmAk7p2mO0A190vT2PZ6v6fX6XW6MvAnC/zJUve9DTAI/AmA78UAg0AnAL4XAwYBnQAAY0AHYADoAByAAaADcAAGgA7AAdABOAAH4ADcs8CO9/0+p/vT6f6NHz08p9OnY3AATidgB/D/CHAAfofYAbidp9N966fDAdidgB/A7Syd7ls/HQ7A7gT8AG5n6XTf+ulwAHYn4AdwO0un+9ZPhwOwOwE/gNtZOt23fjocgN0J+AHcztLpvvXT4QDsTsAP4HaWTvetnw4HYHcCfgC3s3S6b/10OAC7E/ADuJ2l033rp8MB2J2AH8DtLJ3uWz8dDsDuBPwAbmfpdN/66XAApwn8nZ/73tXp/nd6v73vunU4AAfg9MUC7Bv39v8I7ADuN7S96qfDATgAn4DtE7f9P2R2APdv2Hev+ulwAA7AJ2D7pG3/Z8vsAO7vsO9v/XQ4AAfgE7B98rb/59rsAO7f8PdWv344fToAn4BPAHw/BvA9O4D7DX1f9euH06cD8An4BMD3YwDfswO439D3Vb9+OH06AJ8ATAB8TwbwLTuA21m6Xz98On8F7ADuN7S96qfDAdidgB/A7Syd7ls/HQ7A7gT8AG5n6XTf+ulwAHYn4AdwO0un+9ZPhwOwOwE/gNtZOt23fjocgN0J+AHcztLpvvXT4QDsTsAP4HaWTvetnw4HYHcCfgC3s3S6b/10OAC7E/ADuJ2l033rp8MB2J2AH8DtLJ3uWz8dDsDuBPwAbmfpdN/66XAApwn8nd/73tXp/nd6v73vunU4AAfg9MUC7Bv39v+I4HSA6Q99v/9C9X9Yv347OYA/Cej76A96v6dfXb9vEOD7McAg0AmA78WAAXAAzoAOGADYnS/Tz+m+P50+XW6f/gAs76Y0B18X3QAAAABJRU5ErkJggg==";
+        }
+
         function loadIcon(emoji) {
             clearCanvas();
             ctx.fillStyle = "white";
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.font = "90px Arial";
+            ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.font = "90px Arial";
             ctx.fillText(emoji, 64, 68);
             saveCanvas();
             status.innerText = "Icono cargado.";
         }
 
-        // --- ENVIO ---
         async function transferOled() {
-            status.innerText = "Preparando datos...";
+            status.innerText = "Iniciando transferencia...";
             const imgData = ctx.getImageData(0, 0, 128, 128).data;
             let oledBytes = new Uint8Array(2048);
 
@@ -192,22 +186,26 @@
                 const hexData = Array.from(chunk).map(b => b.toString(16).padStart(2, '0')).join('');
                 const cmd = `810F00000000${part.toString(16).padStart(2, '0')}${hexData},-`;
 
-                if (window.bridge) window.bridge.bleSendCmdList(cmd);
-                else if (window.webkit?.messageHandlers?.bleSendCmdList) 
-                    window.webkit.messageHandlers.bleSendCmdList.postMessage(cmd);
-
-                status.innerText = `Enviando... ${Math.round(((part+1)/16)*100)}%`;
-                await new Promise(r => setTimeout(r, 120));
+                try {
+                    if (window.bridge) window.bridge.bleSendCmdList(cmd);
+                    else if (window.webkit?.messageHandlers?.bleSendCmdList) 
+                        window.webkit.messageHandlers.bleSendCmdList.postMessage(cmd);
+                    
+                    status.innerText = `Enviando: ${Math.round(((part+1)/16)*100)}%`;
+                    await new Promise(r => setTimeout(r, 150));
+                } catch(e) {
+                    status.innerText = "⚠️ Fallo en parte " + (part+1);
+                    return;
+                }
             }
 
-            status.innerText = "✅ ¡STRAY CITY enviado!";
-            setTimeout(() => { if (window.bridge) window.bridge.bleDisconnect(""); }, 1000);
+            status.innerText = "✅ ¡Enviado!";
         }
 
         window.onload = () => {
             const last = localStorage.getItem('last_oled_img');
             if (last) { let im = new Image(); im.onload = () => ctx.drawImage(im, 0, 0); im.src = last; }
-            setTimeout(() => { try { window.bridge.blePairingStart(""); } catch(e){} }, 800);
+            setTimeout(initBT, 1000);
         };
     </script>
 </body>
