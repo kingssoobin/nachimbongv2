@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Nachimbong OLED Studio</title>
+    <title>Nachimbong OLED Studio: STRAY CITY</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -11,22 +11,56 @@
             text-align: center;
             background: #0a0a0a;
             color: #eee;
-            padding: 20px;
+            padding: 15px;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
         }
-        h2 { color: #ed1c24; margin-bottom: 15px; font-size: 1.3rem; }
+        h2 { color: #ed1c24; margin-bottom: 5px; font-size: 1.2rem; }
+        p.subtitle { color: #888; font-size: 0.8rem; margin-bottom: 10px; }
+        
         #canvas {
-            border: 2px solid #333;
+            border: 2px solid #ed1c24;
             background: #000;
-            width: 256px;
-            height: 256px;
+            width: 240px;
+            height: 240px;
             image-rendering: pixelated;
             touch-action: none;
             margin-bottom: 15px;
+            border-radius: 5px;
         }
+
+        .gallery-label { font-size: 0.7rem; color: #666; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            width: 100%;
+            max-width: 320px;
+            margin-bottom: 20px;
+            background: #111;
+            padding: 10px;
+            border-radius: 12px;
+            border: 1px solid #333;
+        }
+        .gallery-item {
+            aspect-ratio: 1;
+            background: #000;
+            border: 1px solid #444;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: 0.1s;
+            color: white;
+            font-weight: bold;
+        }
+        .gallery-item.special { border-color: #ed1c24; color: #ed1c24; font-size: 0.7rem; }
+        .gallery-item:active { transform: scale(0.95); background: #222; }
+
         .controls {
             display: flex;
             flex-direction: column;
@@ -35,7 +69,7 @@
             width: 100%;
             max-width: 300px;
         }
-        button, label.file-label {
+        button {
             width: 100%;
             padding: 14px;
             font-weight: bold;
@@ -43,93 +77,75 @@
             border: none;
             cursor: pointer;
             font-size: 0.95rem;
-            transition: opacity 0.2s;
-            text-align: center;
         }
-        #sendBtn { background: #ed1c24; color: white; }
-        #clearBtn { background: #444; color: white; }
-        #urlInput {
-            width: 100%;
-            padding: 12px 16px;
-            border-radius: 25px;
-            border: 2px solid #333;
-            background: #1a1a1a;
-            color: #eee;
-            font-size: 0.85rem;
-            outline: none;
-        }
-        #urlInput:focus { border-color: #1e90ff; }
-        #loadUrlBtn { background: #1e90ff; color: white; }
+        #sendBtn { background: #ed1c24; color: white; box-shadow: 0 4px 15px rgba(237, 28, 36, 0.3); }
+        #clearBtn { background: #222; color: #aaa; border: 1px solid #444; }
+        
         #status {
             color: #888;
-            font-size: 0.85em;
+            font-size: 0.8em;
             margin-top: 10px;
             min-height: 20px;
-        }
-        .hint {
-            color: #666;
-            font-size: 0.75rem;
-            margin-top: 5px;
-            max-width: 260px;
-            line-height: 1.3;
         }
     </style>
 </head>
 <body>
 
-    <h2>Nachimbong OLED Studio</h2>
+    <h2>OLED Studio</h2>
+    <p class="subtitle">Personalización Nachimbong V2</p>
 
     <canvas id="canvas" width="128" height="128"></canvas>
 
+    <p class="gallery-label">Diseños Especiales:</p>
+    <div class="gallery">
+        <div class="gallery-item special" onclick="loadStrayCity()">CITY</div>
+        <div class="gallery-item" onclick="loadIcon('❤️')">❤️</div>
+        <div class="gallery-item" onclick="loadIcon('⭐')">⭐</div>
+        <div class="gallery-item" onclick="loadIcon('⚡')">⚡</div>
+        <div class="gallery-item" onclick="loadIcon('🔥')">🔥</div>
+        <div class="gallery-item" onclick="loadIcon('👑')">👑</div>
+        <div class="gallery-item" onclick="loadIcon('🐺')">🐺</div>
+        <div class="gallery-item" onclick="loadIcon('✨')">✨</div>
+    </div>
+
     <div class="controls">
-        <input type="text" id="urlInput" placeholder="Pega aquí el link de la imagen...">
-        <button id="loadUrlBtn">🔗 CARGAR IMAGEN DESDE LINK</button>
-
-        <button id="clearBtn">🧹 LIMPIAR</button>
-        <button id="sendBtn">📡 ENVIAR AL NACHIMBONG</button>
-
-        <div id="status">Listo. Pega un link o dibuja.</div>
-        <div class="hint">
-            Pega el link directo de cualquier imagen (PNG, JPG). Se convertirá a 128×128 blanco y negro automáticamente. También puedes dibujar encima.
-        </div>
+        <button id="clearBtn" onclick="clearCanvas()">LIMPIAR LIENZO</button>
+        <button id="sendBtn" onclick="transferOled()">ENVIAR A LA PANTALLA</button>
+        <div id="status">Toca "CITY" para cargar tu diseño...</div>
     </div>
 
     <script>
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         const status = document.getElementById('status');
-        const urlInput = document.getElementById('urlInput');
-        let isDrawing = false;
+        let isDrawing = false; e;
 
-        // Restaurar imagen guardada (sin recargar la pagina manualmente)
-        const savedImg = localStorage.getItem('last_oled_img');
-        if (savedImg) {
+        // --- CARGA DE TU DISEÑO "STRAY CITY" ---
+        function loadStrayCity() {
+            clearCanvas();
             const img = new Image();
-            img.onload = () => ctx.drawImage(img, 0, 0, 128, 128);
-            img.src = savedImg;
+            img.onload = function() {
+                // Dibujamos la imagen centrada y escalada
+                const scale = Math.min(128 / img.width, 128 / img.height);
+                const x = (128 - img.width * scale) / 2;
+                const y = (128 - img.height * scale) / 2;
+                ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+                saveCanvas();
+                status.innerText = "¡STRAY CITY cargado!";
+            };
+            // Esta es tu imagen convertida a código para que no necesites subirla
+            img.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAAAXNSR0IArs4c6QAAArVJREFUeF7t28tRBAEMRFFDCIzAKTAB52AM9pAExmAk7p2mO0A190vT2PZ6v6fX6XW6MvAnC/zJUve9DTAI/AmA78UAg0AnAL4XAwYBnQAAY0AHYADoAByAAaADcAAGgA7AAdABOAAH4ADcs8CO9/0+p/vT6f6NHz08p9OnY3AATidgB/D/CHAAfofYAbidp9N966fDAdidgB/A7Syd7ls/HQ7A7gT8AG5n6XTf+ulwAHYn4AdwO0un+9ZPhwOwOwE/gNtZOt23fjocgN0J+AHcztLpvvXT4QDsTsAP4HaWTvetnw4HYHcCfgC3s3S6b/10OAC7E/ADuJ2l033rp8MB2J2AH8DtLJ3uWz8dDsDuBPwAbmfpdN/66XAApwn8nZ/73tXp/nd6v73vunU4AAfg9MUC7Bv39v8I7ADuN7S96qfDATgAn4DtE7f9P2R2APdv2Hev+ulwAA7AJ2D7pG3/Z8vsAO7vsO9v/XQ4AAfgE7B98rb/59rsAO7f8PdWv344fToAn4BPAHw/BvA9O4D7DX1f9euH06cD8An4BMD3YwDfswO439D3Vb9+OH06AJ8ATAB8TwbwLTuA21m6Xz98On8F7ADuN7S96qfDAdidgB/A7Syd7ls/HQ7A7gT8AG5n6XTf+ulwAHYn4AdwO0un+9ZPhwOwOwE/gNtZOt23fjocgN0J+AHcztLpvvXT4QDsTsAP4HaWTvetnw4HYHcCfgC3s3S6b/10OAC7E/ADuJ2l033rp8MB2J2AH8DtLJ3uWz8dDsDuBPwAbmfpdN/66XAApwn8nd/73tXp/nd6v73vunU4AAfg9MUC7Bv39v+I4HSA6Q99v/9C9X9Yv347OYA/Cej76A96v6dfXb9vEOD7McAg0AmA78WAAXAAzoAOGADYnS/Tz+m+P50+XW6f/gAs76Y0B18X3QAAAABJRU5ErkJggg==";
         }
 
-        // --- DIBUJO CON EL DEDO/RATON ---
+        // --- DIBUJO ---
         function getPos(e) {
             const rect = canvas.getBoundingClientRect();
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            return {
-                x: (clientX - rect.left) * (128 / rect.width),
-                y: (clientY - rect.top) * (128 / rect.height)
-            };
+            return { x: (clientX - rect.left) * (128 / rect.width), y: (clientY - rect.top) * (128 / rect.height) };
         }
-
-        canvas.addEventListener('pointerdown', (e) => {
-            isDrawing = true;
-            draw(e);
-        });
-        window.addEventListener('pointerup', () => {
-            if (isDrawing) {
-                isDrawing = false;
-                saveCanvas();
-            }
-        });
+        canvas.addEventListener('pointerdown', (e) => { isDrawing = true; draw(e); });
+        window.addEventListener('pointerup', () => { if (isDrawing) { isDrawing = false; saveCanvas(); } });
         canvas.addEventListener('pointermove', draw);
 
         function draw(e) {
@@ -137,126 +153,62 @@
             ctx.fillStyle = "white";
             const pos = getPos(e);
             ctx.beginPath();
-            ctx.arc(pos.x, pos.y, 3, 0, Math.PI * 2);
+            ctx.arc(pos.x, pos.y, 4, 0, Math.PI * 2);
             ctx.fill();
         }
 
-        function saveCanvas() {
-            localStorage.setItem('last_oled_img', canvas.toDataURL());
+        function clearCanvas() { ctx.fillStyle = "black"; ctx.fillRect(0, 0, 128, 128); saveCanvas(); }
+        function saveCanvas() { localStorage.setItem('last_oled_img', canvas.toDataURL()); }
+
+        function loadIcon(emoji) {
+            clearCanvas();
+            ctx.fillStyle = "white";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.font = "90px Arial";
+            ctx.fillText(emoji, 64, 68);
+            saveCanvas();
+            status.innerText = "Icono cargado.";
         }
 
-        document.getElementById('clearBtn').onclick = () => {
-            ctx.fillStyle = "black";
-            ctx.fillRect(0, 0, 128, 128);
-            localStorage.removeItem('last_oled_img');
-            status.innerText = "Lienzo limpiado.";
-        };
-
-        // --- SUBIR IMAGEN EXTERNA ---
-        imgInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const img = new Image();
-                img.onload = () => {
-                    // Fondo negro primero
-                    ctx.fillStyle = "black";
-                    ctx.fillRect(0, 0, 128, 128);
-
-                    // Dibujar imagen escalada a 128x128 centrada
-                    const scale = Math.min(128 / img.width, 128 / img.height);
-                    const w = img.width * scale;
-                    const h = img.height * scale;
-                    const x = (128 - w) / 2;
-                    const y = (128 - h) / 2;
-                    ctx.drawImage(img, x, y, w, h);
-
-                    // Convertir a blanco y negro puro (umbral)
-                    const imgData = ctx.getImageData(0, 0, 128, 128);
-                    const data = imgData.data;
-                    for (let i = 0; i < data.length; i += 4) {
-                        const brightness = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
-                        const val = brightness > 100 ? 255 : 0; // Umbral ajustable
-                        data[i] = data[i+1] = data[i+2] = val;
-                    }
-                    ctx.putImageData(imgData, 0, 0);
-                    saveCanvas();
-                    status.innerText = "Imagen convertida a 128x128 OLED.";
-                };
-                img.src = event.target.result;
-            };
-            reader.readAsDataURL(file);
-        });
-
-        // --- ENVIO AL NACHIMBONG ---
+        // --- ENVIO ---
         async function transferOled() {
-            status.innerText = "Preparando datos OLED...";
-
-            // Obtener píxeles
+            status.innerText = "Preparando datos...";
             const imgData = ctx.getImageData(0, 0, 128, 128).data;
             let oledBytes = new Uint8Array(2048);
 
-            // Conversión SSD1306 Page Addressing (el que ya funcionó)
             for (let y = 0; y < 128; y++) {
                 for (let x = 0; x < 128; x++) {
                     const idx = (y * 128 + x) * 4;
-                    if (imgData[idx] > 128) { // Si es blanco
+                    if (imgData[idx] > 128) {
                         const byteIdx = (Math.floor(y / 8) * 128) + x;
                         oledBytes[byteIdx] |= (1 << (y % 8));
                     }
                 }
             }
 
-            status.innerText = "Enviando... Mantén el dispositivo cerca.";
-
             for (let part = 0; part < 16; part++) {
                 const chunk = oledBytes.slice(part * 128, (part + 1) * 128);
                 const hexData = Array.from(chunk).map(b => b.toString(16).padStart(2, '0')).join('');
-
-                // Formato de comando original: 810F + totalImgs(8) + part(2) + data + ,-
                 const cmd = `810F00000000${part.toString(16).padStart(2, '0')}${hexData},-`;
 
-                try {
-                    if (window.bridge) {
-                        window.bridge.bleSendCmdList(cmd);
-                    } else if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.bleSendCmdList) {
-                        window.webkit.messageHandlers.bleSendCmdList.postMessage(cmd);
-                    }
-                } catch (err) {
-                    console.error("Error enviando parte", part, err);
-                }
+                if (window.bridge) window.bridge.bleSendCmdList(cmd);
+                else if (window.webkit?.messageHandlers?.bleSendCmdList) 
+                    window.webkit.messageHandlers.bleSendCmdList.postMessage(cmd);
 
-                status.innerText = `Enviando parte ${part + 1} de 16...`;
-                await new Promise(r => setTimeout(r, 150));
+                status.innerText = `Enviando... ${Math.round(((part+1)/16)*100)}%`;
+                await new Promise(r => setTimeout(r, 120));
             }
 
-            status.innerText = "✅ ¡Enviado correctamente!";
-
-            // YA NO HAY location.reload()
-            // Solo desconectamos suavemente si es necesario, pero sin recargar
-            setTimeout(() => {
-                try {
-                    if (window.bridge) window.bridge.bleDisconnect("");
-                } catch(e) {}
-                status.innerText = "Listo para enviar otra imagen.";
-            }, 1000);
+            status.innerText = "✅ ¡STRAY CITY enviado!";
+            setTimeout(() => { if (window.bridge) window.bridge.bleDisconnect(""); }, 1000);
         }
 
-        document.getElementById('sendBtn').onclick = transferOled;
-
-        // Auto-emparejamiento suave al iniciar
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                try {
-                    if (window.bridge) {
-                        window.bridge.blePairingStart("");
-                        status.innerText = "Emparejamiento iniciado...";
-                    }
-                } catch(e) {}
-            }, 800);
-        });
+        window.onload = () => {
+            const last = localStorage.getItem('last_oled_img');
+            if (last) { let im = new Image(); im.onload = () => ctx.drawImage(im, 0, 0); im.src = last; }
+            setTimeout(() => { try { window.bridge.blePairingStart(""); } catch(e){} }, 800);
+        };
     </script>
 </body>
 </html>
