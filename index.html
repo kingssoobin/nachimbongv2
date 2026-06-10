@@ -48,12 +48,18 @@
         }
         #sendBtn { background: #ed1c24; color: white; }
         #clearBtn { background: #444; color: white; }
-        label.file-label {
-            background: #1e90ff;
-            color: white;
-            display: inline-block;
+        #urlInput {
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 25px;
+            border: 2px solid #333;
+            background: #1a1a1a;
+            color: #eee;
+            font-size: 0.85rem;
+            outline: none;
         }
-        input[type="file"] { display: none; }
+        #urlInput:focus { border-color: #1e90ff; }
+        #loadUrlBtn { background: #1e90ff; color: white; }
         #status {
             color: #888;
             font-size: 0.85em;
@@ -76,15 +82,15 @@
     <canvas id="canvas" width="128" height="128"></canvas>
 
     <div class="controls">
-        <label class="file-label" for="imgInput">📁 SUBIR IMAGEN</label>
-        <input type="file" id="imgInput" accept="image/png, image/jpeg, image/jpg">
+        <input type="text" id="urlInput" placeholder="Pega aquí el link de la imagen...">
+        <button id="loadUrlBtn">🔗 CARGAR IMAGEN DESDE LINK</button>
 
         <button id="clearBtn">🧹 LIMPIAR</button>
         <button id="sendBtn">📡 ENVIAR AL NACHIMBONG</button>
-        
-        <div id="status">Listo. Dibuja o sube una imagen.</div>
+
+        <div id="status">Listo. Pega un link o dibuja.</div>
         <div class="hint">
-            Sube cualquier imagen y se convertirá a 128×128 blanco y negro automáticamente. También puedes dibujar encima.
+            Pega el link directo de cualquier imagen (PNG, JPG). Se convertirá a 128×128 blanco y negro automáticamente. También puedes dibujar encima.
         </div>
     </div>
 
@@ -92,7 +98,7 @@
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         const status = document.getElementById('status');
-        const imgInput = document.getElementById('imgInput');
+        const urlInput = document.getElementById('urlInput');
         let isDrawing = false;
 
         // Restaurar imagen guardada (sin recargar la pagina manualmente)
@@ -208,7 +214,7 @@
             for (let part = 0; part < 16; part++) {
                 const chunk = oledBytes.slice(part * 128, (part + 1) * 128);
                 const hexData = Array.from(chunk).map(b => b.toString(16).padStart(2, '0')).join('');
-                
+
                 // Formato de comando original: 810F + totalImgs(8) + part(2) + data + ,-
                 const cmd = `810F00000000${part.toString(16).padStart(2, '0')}${hexData},-`;
 
@@ -227,8 +233,8 @@
             }
 
             status.innerText = "✅ ¡Enviado correctamente!";
-            
-            // YA NO HAY location.reload() 
+
+            // YA NO HAY location.reload()
             // Solo desconectamos suavemente si es necesario, pero sin recargar
             setTimeout(() => {
                 try {
