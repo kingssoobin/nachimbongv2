@@ -3,26 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OLED Studio Full Suite</title>
+    <title>Nachimbong OLED Studio Connect</title>
     <script src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Orbitron:wght@700&family=Permanent+Marker&family=VT323&family=Creepster&family=Russo+One&family=Bangers&family=Righteous&family=Bungee&family=Audiowide&family=Black+Ops+One&family=Bebas+Neue&family=Teko:wght@700&family=Rajdhani:wght@700&display=swap');
-        body { background: #000; color: #fff; margin: 0; }
-        canvas { image-rendering: pixelated; display: block; }
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Orbitron:wght@700&family=Permanent+Marker&family=VT323&family=Creepster&family=Russo+One&family=Bangers&family=Bungee&family=Audiowide&display=swap');
+        body { background: #000; color: #fff; touch-action: none; }
+        .oled-border { border: 4px solid #ed1c24; box-shadow: 0 0 25px rgba(237,28,36,0.2); }
+        .grid-preview { image-rendering: pixelated; width: 256px; height: 256px; }
+        canvas { display: block; image-rendering: pixelated; }
         input[type=range] { accent-color: #ed1c24; }
-        .oled-border { border: 4px solid #ed1c24; box-shadow: 0 0 30px rgba(237,28,36,0.3); }
-        .grid-overlay {
-            position: absolute; inset: 0; pointer-events: none;
-            background-image: radial-gradient(rgba(255,255,255,0.07) 1px, transparent 1px);
-            background-size: 4px 4px;
-        }
-        /* Grid editor */
-        #gridCanvas { cursor: crosshair; image-rendering: pixelated; display: block; }
-        .tab-btn { transition: all 0.2s; }
-        .tab-btn.active { background: #ed1c24; color: #fff; }
+        .tool-btn { @apply border border-gray-800 rounded-xl px-4 py-2 text-[10px] font-bold transition-all; }
+        .tool-active { @apply bg-red-600 border-red-600 text-white; }
     </style>
 </head>
 <body>
@@ -30,415 +24,242 @@
     <script type="text/babel">
         const { useState, useEffect, useRef, useCallback } = React;
 
-        // ── Fuentes disponibles ──────────────────────────────────────────────
-        const FONTS = [
-            { label: "Bold",    value: "Russo One" },
-            { label: "Pixel",   value: "'Press Start 2P'" },
-            { label: "Orbit",   value: "Orbitron" },
-            { label: "Terror",  value: "Creepster" },
-            { label: "Marker",  value: "'Permanent Marker'" },
-            { label: "Retro",   value: "VT323" },
-            { label: "Bang!",   value: "Bangers" },
-            { label: "Right",   value: "Righteous" },
-            { label: "Bungee",  value: "Bungee" },
-            { label: "Audio",   value: "Audiowide" },
-            { label: "BlackOp", value: "'Black Ops One'" },
-            { label: "Bebas",   value: "'Bebas Neue'" },
-            { label: "Teko",    value: "Teko" },
-            { label: "Raj",     value: "Rajdhani" },
-        ];
-
-        // ── Componente principal ─────────────────────────────────────────────
         const App = () => {
-            // Tabs: "text" | "draw"
             const [tab, setTab] = useState("text");
+            const [bleStatus, setBleStatus] = useState("Desconectado");
+            const [status, setStatus] = useState("🎨 Diseña tu OLED");
 
-            // ── Estado: Texto ──
-            const previewRef  = useRef(null);
-            const [numLines,   setNumLines]   = useState(1);
-            const [texts,      setTexts]      = useState(["STRAY KIDS", "STAY", "HELLO"]);
-            const [fontSize,   setFontSize]   = useState(24);
-            const [fontFamily, setFontFamily] = useState("Russo One");
-            const [isCracked,  setIsCracked]  = useState(false);
-            const [status,     setStatus]     = useState("🎨 Listo para diseñar");
+            // Bluetooth Refs
+            const bleDev = useRef(null);
+            const bleChr = useRef(null);
+            const svcUuid = "0000fff0-0000-1000-8000-00805f9b34fb";
+            const chrUuid = "0000fff1-0000-1000-8000-00805f9b34fb";
 
-            // ── Estado: Cuadrícula ──
-            const gridRef      = useRef(null);
-            const COLS = 128, ROWS = 128;
-            // Usamos un Uint8Array para los bits (0=negro, 1=blanco)
-            const pixelsRef    = useRef(new Uint8Array(COLS * ROWS));
-            const isPainting   = useRef(false);
-            const paintMode    = useRef(1); // 1=pintar blanco, 0=borrar
-            const [brushSize,  setBrushSize]  = useState(1);
-            const [zoom,       setZoom]       = useState(4); // px por celda en el editor
-            const [drawTool,   setDrawTool]   = useState("pen"); // pen | eraser | fill
+            // Drawing Refs
+            const gridCanvasRef = useRef(null);
+            const pixels = useRef(new Uint8Array(128 * 128));
+            const [zoom, setZoom] = useState(4);
+            const [brushSize, setBrushSize] = useState(1);
+            const [tool, setTool] = useState("pen");
+            const isDrawing = useRef(false);
 
-            // ── Render preview (texto) ───────────────────────────────────────
-            useEffect(() => {
-                if (tab === "text") renderPreview();
-            }, [tab, numLines, texts, fontSize, fontFamily, isCracked]);
+            // Text State
+            const textCanvasRef = useRef(null);
+            const [numLines, setNumLines] = useState(1);
+            const [texts, setTexts] = useState(["STRAY KIDS", "STAY", ""]);
+            const [font, setFont] = useState("Russo One");
+            const [fontSize, setFontSize] = useState(24);
+            const [isCracked, setIsCracked] = useState(false);
 
-            const renderPreview = () => {
-                const canvas = previewRef.current;
-                if (!canvas) return;
-                const ctx = canvas.getContext('2d');
-                ctx.fillStyle = "black";
-                ctx.fillRect(0, 0, 128, 128);
-
-                ctx.textAlign = "center";
-                ctx.textBaseline = "middle";
-                ctx.font = `bold ${fontSize}px ${fontFamily}`;
-
-                const active = texts.slice(0, numLines);
-                const lh = fontSize * 1.15;
-                const startY = 64 - ((active.length - 1) * lh) / 2;
-
-                active.forEach((text, i) => {
-                    const y = startY + i * lh;
-                    ctx.strokeStyle = "black"; ctx.lineWidth = 4;
-                    ctx.strokeText(text.toUpperCase(), 64, y);
-                    ctx.fillStyle = "white";
-                    ctx.fillText(text.toUpperCase(), 64, y);
-                    if (isCracked && text.trim()) applyCracks(ctx, text, 64, y, fontSize);
-                });
-            };
-
-            const applyCracks = (ctx, text, x, y, size) => {
-                ctx.strokeStyle = "black"; ctx.lineWidth = 1.5;
-                const w = ctx.measureText(text).width;
-                for (let i = 0; i < 5; i++) {
-                    let cx = x - w/2 + Math.random()*w;
-                    let cy = y - size/2 + Math.random()*size;
-                    ctx.beginPath(); ctx.moveTo(cx, cy);
-                    for (let j = 0; j < 3; j++) {
-                        cx += (Math.random()-0.5)*15; cy += (Math.random()-0.5)*10;
-                        ctx.lineTo(cx, cy);
-                    }
-                    ctx.stroke();
+            // ── BLUETOOTH ───────────────────────────────────────────
+            const connect = async () => {
+                try {
+                    setBleStatus("Buscando...");
+                    const dev = await navigator.bluetooth.requestDevice({
+                        filters: [{ namePrefix: "STRAY KIDS" }],
+                        optionalServices: [svcUuid]
+                    });
+                    bleDev.current = dev;
+                    setBleStatus("Conectando...");
+                    const server = await dev.gatt.connect();
+                    const service = await server.getPrimaryService(svcUuid);
+                    bleChr.current = await service.getCharacteristic(chrUuid);
+                    setBleStatus("Conectado ✅");
+                } catch (e) {
+                    setBleStatus("Error");
+                    console.error(e);
                 }
             };
 
-            // ── Render cuadrícula ────────────────────────────────────────────
-            const renderGrid = useCallback(() => {
-                const canvas = gridRef.current;
-                if (!canvas) return;
+            const sendData = async (byteData) => {
+                if (!bleChr.current) {
+                    setStatus("⚠️ Conecta el Nachimbong primero");
+                    return;
+                }
+                setStatus("📡 Enviando bits...");
+                try {
+                    // El protocolo suele requerir trozos de 20 bytes
+                    for (let i = 0; i < byteData.length; i += 20) {
+                        const chunk = new Uint8Array(byteData.slice(i, i + 20));
+                        await bleChr.current.writeValue(chunk);
+                    }
+                    setStatus("✅ Transferencia completa");
+                } catch (e) {
+                    setStatus("❌ Error de envío");
+                }
+            };
+
+            // ── DRAWING LOGIC ───────────────────────────────────────
+            const drawPixel = (e) => {
+                if (!isDrawing.current) return;
+                const canvas = gridCanvasRef.current;
+                const rect = canvas.getBoundingClientRect();
+                const x = Math.floor((e.clientX - rect.left) / zoom);
+                const y = Math.floor((e.clientY - rect.top) / zoom);
+                if (x < 0 || x >= 128 || y < 0 || y >= 128) return;
+
                 const ctx = canvas.getContext('2d');
-                const W = COLS * zoom, H = ROWS * zoom;
-                canvas.width  = W;
-                canvas.height = H;
+                const val = tool === "eraser" ? 0 : 1;
+                const radius = Math.floor(brushSize / 2);
 
-                // Fondo negro
-                ctx.fillStyle = "#000";
-                ctx.fillRect(0, 0, W, H);
-
-                // Píxeles blancos
-                ctx.fillStyle = "#fff";
-                const px = pixelsRef.current;
-                for (let r = 0; r < ROWS; r++) {
-                    for (let c = 0; c < COLS; c++) {
-                        if (px[r * COLS + c] === 1) {
+                for (let dr = -radius; dr <= radius; dr++) {
+                    for (let dc = -radius; dc <= radius; dc++) {
+                        const r = y + dr, c = x + dc;
+                        if (r >= 0 && r < 128 && c >= 0 && c < 128) {
+                            pixels.current[r * 128 + c] = val;
+                            ctx.fillStyle = val ? "white" : "black";
                             ctx.fillRect(c * zoom, r * zoom, zoom, zoom);
                         }
                     }
                 }
-
-                // Líneas de cuadrícula (solo si zoom >= 3)
-                if (zoom >= 3) {
-                    ctx.strokeStyle = "rgba(255,0,0,0.15)";
-                    ctx.lineWidth = 0.5;
-                    for (let c = 0; c <= COLS; c++) {
-                        ctx.beginPath(); ctx.moveTo(c*zoom, 0); ctx.lineTo(c*zoom, H); ctx.stroke();
-                    }
-                    for (let r = 0; r <= ROWS; r++) {
-                        ctx.beginPath(); ctx.moveTo(0, r*zoom); ctx.lineTo(W, r*zoom); ctx.stroke();
-                    }
-                }
-            }, [zoom]);
-
-            useEffect(() => { if (tab === "draw") renderGrid(); }, [tab, zoom, renderGrid]);
-
-            // ── Flood fill ───────────────────────────────────────────────────
-            const floodFill = (startC, startR, fillVal) => {
-                const px = pixelsRef.current;
-                const target = px[startR * COLS + startC];
-                if (target === fillVal) return;
-                const stack = [[startC, startR]];
-                while (stack.length) {
-                    const [c, r] = stack.pop();
-                    if (c < 0 || c >= COLS || r < 0 || r >= ROWS) continue;
-                    if (px[r * COLS + c] !== target) continue;
-                    px[r * COLS + c] = fillVal;
-                    stack.push([c+1,r],[c-1,r],[c,r+1],[c,r-1]);
-                }
             };
-
-            // ── Pintar píxeles ───────────────────────────────────────────────
-            const paintAt = (e) => {
-                const canvas = gridRef.current;
-                const rect = canvas.getBoundingClientRect();
-                const scaleX = canvas.width  / rect.width;
-                const scaleY = canvas.height / rect.height;
-                const mx = (e.clientX - rect.left) * scaleX;
-                const my = (e.clientY - rect.top)  * scaleY;
-                const col = Math.floor(mx / zoom);
-                const row = Math.floor(my / zoom);
-                if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return;
-
-                const px = pixelsRef.current;
-
-                if (drawTool === "fill") {
-                    floodFill(col, row, paintMode.current);
-                } else {
-                    const half = Math.floor(brushSize / 2);
-                    for (let dr = -half; dr <= half; dr++) {
-                        for (let dc = -half; dc <= half; dc++) {
-                            const r = row + dr, c = col + dc;
-                            if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
-                                px[r * COLS + c] = paintMode.current;
-                            }
-                        }
-                    }
-                }
-                renderGrid();
-            };
-
-            const onMouseDown = (e) => {
-                isPainting.current = true;
-                const canvas = gridRef.current;
-                const rect = canvas.getBoundingClientRect();
-                const scaleX = canvas.width / rect.width;
-                const scaleY = canvas.height / rect.height;
-                const mx = (e.clientX - rect.left) * scaleX;
-                const my = (e.clientY - rect.top)  * scaleY;
-                const col = Math.floor(mx / zoom);
-                const row = Math.floor(my / zoom);
-                if (col >= 0 && col < COLS && row >= 0 && row < ROWS) {
-                    paintMode.current = drawTool === "eraser" ? 0 : (pixelsRef.current[row*COLS+col] === 1 && drawTool === "pen" ? 0 : 1);
-                }
-                paintAt(e);
-            };
-            const onMouseMove = (e) => { if (isPainting.current) paintAt(e); };
-            const onMouseUp   = ()  => { isPainting.current = false; };
 
             const clearGrid = () => {
-                pixelsRef.current = new Uint8Array(COLS * ROWS);
-                renderGrid();
-            };
-            const invertGrid = () => {
-                const px = pixelsRef.current;
-                for (let i = 0; i < px.length; i++) px[i] = px[i] ? 0 : 1;
-                renderGrid();
+                pixels.current.fill(0);
+                const ctx = gridCanvasRef.current.getContext('2d');
+                ctx.fillStyle = "black";
+                ctx.fillRect(0,0, 128*zoom, 128*zoom);
             };
 
-            // ── Generar payload de bits ──────────────────────────────────────
-            const buildPayload = (sourceCanvas) => {
-                const ctx = sourceCanvas.getContext('2d');
-                const imgData = ctx.getImageData(0, 0, 128, 128);
-                const d = imgData.data;
-                const bytes = [];
-                // Agrupar en páginas de 8 filas (como driver SSD1306)
-                for (let page = 0; page < 16; page++) {
-                    for (let col = 0; col < 128; col++) {
-                        let byte = 0;
-                        for (let bit = 0; bit < 8; bit++) {
-                            const row = page * 8 + bit;
-                            const idx = (row * 128 + col) * 4;
-                            if (d[idx] > 128) byte |= (1 << bit);
+            useEffect(() => {
+                if (tab === "draw" && gridCanvasRef.current) {
+                    const ctx = gridCanvasRef.current.getContext('2d');
+                    ctx.fillStyle = "black"; ctx.fillRect(0,0, 128*zoom, 128*zoom);
+                    ctx.fillStyle = "white";
+                    for(let i=0; i<pixels.current.length; i++) {
+                        if(pixels.current[i]) {
+                            const r = Math.floor(i/128), c = i%128;
+                            ctx.fillRect(c*zoom, r*zoom, zoom, zoom);
                         }
-                        bytes.push(byte);
                     }
                 }
-                return bytes;
-            };
+            }, [tab, zoom]);
 
-            const handleTransfer = () => {
-                let canvas;
-                if (tab === "text") {
-                    canvas = previewRef.current;
-                } else {
-                    // Convertir pixelsRef a canvas temporal
-                    const tmp = document.createElement('canvas');
-                    tmp.width = 128; tmp.height = 128;
-                    const tCtx = tmp.getContext('2d');
-                    tCtx.fillStyle = "black"; tCtx.fillRect(0,0,128,128);
-                    tCtx.fillStyle = "white";
-                    const px = pixelsRef.current;
-                    for (let r = 0; r < ROWS; r++)
-                        for (let c = 0; c < COLS; c++)
-                            if (px[r*COLS+c]) tCtx.fillRect(c,r,1,1);
-                    canvas = tmp;
+            // ── TEXT RENDER ─────────────────────────────────────────
+            useEffect(() => {
+                if (tab === "text" && textCanvasRef.current) {
+                    const ctx = textCanvasRef.current.getContext('2d');
+                    ctx.fillStyle = "black"; ctx.fillRect(0,0,128,128);
+                    ctx.fillStyle = "white";
+                    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                    ctx.font = `bold ${fontSize}px ${font}`;
+                    const active = texts.slice(0, numLines);
+                    const lh = fontSize * 1.1;
+                    const startY = 64 - ((active.length - 1) * lh) / 2;
+                    active.forEach((t, i) => {
+                        const y = startY + i*lh;
+                        ctx.strokeStyle = "black"; ctx.lineWidth = 4;
+                        ctx.strokeText(t.toUpperCase(), 64, y);
+                        ctx.fillText(t.toUpperCase(), 64, y);
+                    });
                 }
-                const payload = buildPayload(canvas);
-                setStatus(`📡 Payload listo: ${payload.length} bytes → enviando al Nachimbong...`);
+            }, [tab, texts, numLines, font, fontSize]);
+
+            // ── PREPARE IMAGE ───────────────────────────────────────
+            const parseAndSend = () => {
+                const canvas = tab === "text" ? textCanvasRef.current : null;
+                let data;
+                if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    const img = ctx.getImageData(0,0,128,128).data;
+                    data = new Uint8Array(2048); // 128*128bits / 8
+                    for (let p=0; p<16; p++) {
+                        for (let c=0; c<128; c++) {
+                            let b = 0;
+                            for (let bit=0; bit<8; bit++) {
+                                const idx = ((p*8+bit)*128+c)*4;
+                                if (img[idx] > 128) b |= (1 << bit);
+                            }
+                            data[p*128+c] = b;
+                        }
+                    }
+                } else {
+                    data = new Uint8Array(2048);
+                    const px = pixels.current;
+                    for (let p=0; p<16; p++) {
+                        for (let c=0; c<128; c++) {
+                            let b = 0;
+                            for (let bit=0; bit<8; bit++) {
+                                if (px[(p*8+bit)*128+c]) b |= (1 << bit);
+                            }
+                            data[p*128+c] = b;
+                        }
+                    }
+                }
+                sendData(data);
             };
 
-            // ── UI ───────────────────────────────────────────────────────────
             return (
-                <div className="flex flex-col items-center min-h-screen p-4 pb-12">
-                    <h1 className="text-red-600 text-lg font-black mb-4 tracking-tighter">⚡ OLED STUDIO FULL SUITE</h1>
-
-                    {/* Tabs */}
-                    <div className="flex gap-1 bg-gray-900 p-1 rounded-2xl mb-5 w-full max-w-md">
-                        <button onClick={() => setTab("text")}
-                            className={`flex-1 py-2 text-xs font-black rounded-xl transition-all ${tab==="text" ? "bg-red-600 text-white" : "text-gray-500 hover:text-gray-300"}`}>
-                            📝 TEXTO
-                        </button>
-                        <button onClick={() => setTab("draw")}
-                            className={`flex-1 py-2 text-xs font-black rounded-xl transition-all ${tab==="draw" ? "bg-red-600 text-white" : "text-gray-500 hover:text-gray-300"}`}>
-                            🎨 CUADRÍCULA 128×128
-                        </button>
+                <div className="flex flex-col items-center min-h-screen p-4 max-w-lg mx-auto">
+                    <div className="w-full flex justify-between items-center mb-4 bg-gray-900 p-3 rounded-2xl border border-gray-800">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Status: {bleStatus}</span>
+                        <button onClick={connect} className="bg-red-600 px-4 py-1 rounded-full text-[10px] font-black">CONECTAR BLE</button>
                     </div>
 
-                    {/* ── TAB TEXTO ── */}
-                    {tab === "text" && (
-                        <>
-                            {/* Preview OLED */}
-                            <div className="relative oled-border mb-6" style={{width:256,height:256}}>
-                                <canvas ref={previewRef} width="128" height="128" style={{width:256,height:256}} />
-                                <div className="grid-overlay"></div>
-                                <div className="absolute bottom-1 right-2 text-gray-700 font-mono" style={{fontSize:'8px'}}>128×128 MONO</div>
+                    <div className="flex w-full gap-1 mb-4 bg-gray-900 p-1 rounded-xl">
+                        <button onClick={() => setTab("text")} className={`flex-1 py-2 text-[10px] font-bold rounded-lg ${tab==="text"?"bg-black border border-red-600":"text-gray-500"}`}>MENSAJE</button>
+                        <button onClick={() => setTab("draw")} className={`flex-1 py-2 text-[10px] font-bold rounded-lg ${tab==="draw"?"bg-black border border-red-600":"text-gray-500"}`}>DIBUJO LIBRE</button>
+                    </div>
+
+                    {tab === "text" ? (
+                        <div className="w-full space-y-6">
+                            <div className="oled-border mx-auto overflow-hidden rounded-lg bg-black group relative">
+                                <canvas ref={textCanvasRef} width="128" height="128" className="grid-preview" />
+                                <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:4px_4px] pointer-events-none"></div>
                             </div>
-
-                            <div className="w-full max-w-md bg-gray-900 rounded-3xl p-5 space-y-5 border border-gray-800">
-                                {/* Líneas */}
-                                <div className="space-y-2">
-                                    <label className="text-[10px] text-gray-500 font-black uppercase tracking-widest">📝 Líneas de Texto</label>
-                                    <div className="flex gap-1 bg-black p-1 rounded-xl">
-                                        {[1,2,3].map(n => (
-                                            <button key={n} onClick={() => setNumLines(n)}
-                                                className={`flex-1 py-2 text-[10px] font-bold rounded-lg transition-all ${numLines===n ? 'bg-red-600 text-white' : 'text-gray-500 hover:text-gray-300'}`}>
-                                                {n} {n===1?'LÍNEA':'LÍNEAS'}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                {/* Inputs */}
-                                <div className="space-y-2">
-                                    {Array.from({length: numLines}).map((_,i) => (
-                                        <input key={i} type="text" maxLength="14" value={texts[i]}
-                                            onChange={e => { const t=[...texts]; t[i]=e.target.value; setTexts(t); }}
-                                            placeholder={`Línea ${i+1}...`}
-                                            className="w-full bg-black border border-gray-800 rounded-xl px-4 py-2 text-sm focus:border-red-600 outline-none border-l-4 border-l-red-700"
-                                        />
-                                    ))}
-                                </div>
-
-                                {/* Fuentes */}
-                                <div className="space-y-2">
-                                    <label className="text-[10px] text-gray-500 font-black uppercase tracking-widest">🔤 Fuente</label>
-                                    <div className="grid grid-cols-4 gap-1">
-                                        {FONTS.map(f => (
-                                            <button key={f.label} onClick={() => setFontFamily(f.value)}
-                                                style={{fontFamily: f.value}}
-                                                className={`py-2 text-[10px] rounded-xl border transition-all truncate px-1 ${fontFamily===f.value ? 'border-red-600 text-red-400 bg-red-950' : 'border-gray-800 text-gray-400 hover:border-gray-600'}`}>
-                                                {f.label}
-                                            </button>
-                                        ))}
-                                    </div>
-                                    <div className="flex justify-between text-[10px] text-gray-500 pt-1">
-                                        <span>Tamaño</span><span className="text-red-500 font-mono">{fontSize}px</span>
-                                    </div>
-                                    <input type="range" min="8" max="60" value={fontSize} onChange={e => setFontSize(+e.target.value)} className="w-full h-1" />
-                                </div>
-
-                                {/* Grieta */}
-                                <div className="flex items-center justify-between p-3 bg-black rounded-2xl border border-gray-800 cursor-pointer"
-                                    onClick={() => setIsCracked(!isCracked)}>
-                                    <div>
-                                        <div className="text-xs font-bold">💥 EFECTO AGRIETADO</div>
-                                        <div className="text-[9px] text-gray-500">SIMULA PANTALLA ROTA</div>
-                                    </div>
-                                    <div className={`w-10 h-5 rounded-full p-0.5 transition-colors ${isCracked ? 'bg-red-600' : 'bg-gray-800'}`}>
-                                        <div className={`w-4 h-4 bg-white rounded-full transition-transform ${isCracked ? 'translate-x-5' : ''}`} />
-                                    </div>
-                                </div>
-
-                                <button onClick={handleTransfer}
-                                    className="w-full bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-2xl active:scale-95 transition-all text-xs tracking-widest shadow-xl shadow-red-900/30">
-                                    📡 TRANSFERIR AL NACHIMBONG
-                                </button>
-                                <p className="text-center font-mono text-[10px] text-gray-500 animate-pulse">{status}</p>
-                            </div>
-                        </>
-                    )}
-
-                    {/* ── TAB CUADRÍCULA ── */}
-                    {tab === "draw" && (
-                        <div className="w-full max-w-2xl flex flex-col items-center gap-4">
-                            {/* Toolbar */}
-                            <div className="w-full bg-gray-900 rounded-2xl p-3 border border-gray-800 flex flex-wrap gap-2 items-center justify-between">
-                                {/* Herramientas */}
+                            <div className="bg-gray-900 p-4 rounded-3xl space-y-4 border border-gray-800">
                                 <div className="flex gap-1">
-                                    {[
-                                        {id:"pen",    label:"✏️ Lápiz"},
-                                        {id:"eraser", label:"🧹 Borrador"},
-                                        {id:"fill",   label:"🪣 Relleno"},
-                                    ].map(t => (
-                                        <button key={t.id} onClick={() => setDrawTool(t.id)}
-                                            className={`px-3 py-1 text-[10px] font-bold rounded-lg border transition-all ${drawTool===t.id ? 'bg-red-600 border-red-600 text-white' : 'border-gray-700 text-gray-400 hover:border-gray-500'}`}>
-                                            {t.label}
-                                        </button>
+                                    {[1, 2, 3].map(n => (
+                                        <button key={n} onClick={() => setNumLines(n)} className={`flex-1 py-2 text-[10px] rounded-lg border ${numLines===n?"bg-red-600 border-red-600":"border-gray-800 text-gray-500"}`}>{n} LIN</button>
                                     ))}
                                 </div>
-
-                                {/* Tamaño de pincel */}
-                                <div className="flex items-center gap-2">
-                                    <span className="text-[10px] text-gray-500">Pincel</span>
-                                    {[1,2,4,8].map(s => (
-                                        <button key={s} onClick={() => setBrushSize(s)}
-                                            className={`w-7 h-7 rounded-lg text-[10px] font-bold border transition-all ${brushSize===s ? 'bg-red-600 border-red-600 text-white' : 'border-gray-700 text-gray-400'}`}>
-                                            {s}
-                                        </button>
+                                {texts.slice(0, numLines).map((t, i) => (
+                                    <input key={i} value={t} onChange={e => { const n = [...texts]; n[i] = e.target.value; setTexts(n); }} className="w-full bg-black border border-gray-800 rounded-xl px-4 py-2 text-sm focus:border-red-600 outline-none" placeholder={`Línea ${i+1}`} />
+                                ))}
+                                <div className="grid grid-cols-4 gap-1">
+                                    {["Russo One", "'Press Start 2P'", "Orbitron", "Bungee", "Permanent Marker", "Creepster", "VT323", "Audiowide"].map(f => (
+                                        <button key={f} onClick={() => setFont(f)} className={`py-2 border rounded-lg text-[8px] truncate ${font===f?"border-red-600 text-red-500":"border-gray-800"}`} style={{fontFamily:f}}>{f}</button>
                                     ))}
                                 </div>
-
-                                {/* Zoom */}
-                                <div className="flex items-center gap-2">
-                                    <span className="text-[10px] text-gray-500">Zoom</span>
-                                    {[2,3,4,6].map(z => (
-                                        <button key={z} onClick={() => setZoom(z)}
-                                            className={`w-7 h-7 rounded-lg text-[10px] font-bold border transition-all ${zoom===z ? 'bg-red-600 border-red-600 text-white' : 'border-gray-700 text-gray-400'}`}>
-                                            {z}x
-                                        </button>
-                                    ))}
-                                </div>
-
-                                {/* Acciones */}
-                                <div className="flex gap-1">
-                                    <button onClick={invertGrid}
-                                        className="px-3 py-1 text-[10px] font-bold rounded-lg border border-gray-700 text-gray-400 hover:border-gray-500">
-                                        🔄 Invertir
-                                    </button>
-                                    <button onClick={clearGrid}
-                                        className="px-3 py-1 text-[10px] font-bold rounded-lg border border-red-900 text-red-500 hover:bg-red-950">
-                                        🗑️ Limpiar
-                                    </button>
-                                </div>
+                                <input type="range" min="10" max="50" value={fontSize} onChange={e => setFontSize(+e.target.value)} className="w-full h-1" />
                             </div>
-
-                            {/* Canvas de dibujo */}
-                            <div className="oled-border overflow-auto" style={{maxWidth:'100%', maxHeight:'60vh'}}>
-                                <canvas
-                                    ref={gridRef}
-                                    width={COLS*zoom} height={ROWS*zoom}
-                                    style={{width: COLS*zoom, height: ROWS*zoom, cursor: drawTool==="fill" ? "cell" : drawTool==="eraser" ? "not-allowed" : "crosshair"}}
-                                    onMouseDown={onMouseDown}
-                                    onMouseMove={onMouseMove}
-                                    onMouseUp={onMouseUp}
-                                    onMouseLeave={onMouseUp}
+                        </div>
+                    ) : (
+                        <div className="w-full space-y-4">
+                            <div className="oled-border mx-auto overflow-auto rounded-lg bg-black border-red-600" style={{maxWidth:256, maxHeight:256}}>
+                                <canvas 
+                                    ref={gridCanvasRef} 
+                                    width={128*zoom} height={128*zoom} 
+                                    onMouseDown={(e) => { isDrawing.current = true; drawPixel(e); }}
+                                    onMouseMove={drawPixel}
+                                    onMouseUp={() => isDrawing.current = false}
+                                    onMouseLeave={() => isDrawing.current = false}
+                                    className="cursor-crosshair"
                                 />
                             </div>
-
-                            <div className="w-full bg-gray-900 rounded-2xl p-4 border border-gray-800 space-y-3">
-                                <button onClick={handleTransfer}
-                                    className="w-full bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-2xl active:scale-95 transition-all text-xs tracking-widest shadow-xl shadow-red-900/30">
-                                    📡 TRANSFERIR DIBUJO AL NACHIMBONG
-                                </button>
-                                <p className="text-center font-mono text-[10px] text-gray-500 animate-pulse">{status}</p>
+                            <div className="bg-gray-900 p-4 rounded-3xl flex flex-col gap-3 border border-gray-800">
+                                <div className="flex justify-between items-center">
+                                    <div className="flex gap-1">
+                                        <button onClick={() => setTool("pen")} className={`w-10 h-10 rounded-xl border flex items-center justify-center ${tool==="pen"?"bg-red-600 border-red-600":"border-gray-800"}`}>✏️</button>
+                                        <button onClick={() => setTool("eraser")} className={`w-10 h-10 rounded-xl border flex items-center justify-center ${tool==="eraser"?"bg-red-600 border-red-600":"border-gray-800"}`}>🧹</button>
+                                    </div>
+                                    <div className="flex gap-1">
+                                        {[2, 4, 6, 8].map(z => (
+                                            <button key={z} onClick={() => setZoom(z)} className={`w-8 h-8 rounded-lg border text-[10px] ${zoom===z?"text-red-500 border-red-600":"border-gray-800"}`}>{z}x</button>
+                                        ))}
+                                    </div>
+                                    <button onClick={clearGrid} className="bg-red-950 text-red-500 border border-red-900 px-3 py-1 rounded-lg text-[10px]">BORRAR</button>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <span className="text-[10px] text-gray-500 uppercase">Grosor</span>
+                                    <input type="range" min="1" max="8" value={brushSize} onChange={e => setBrushSize(+e.target.value)} className="flex-1 h-1" />
+                                </div>
                             </div>
                         </div>
                     )}
+
+                    <button onClick={parseAndSend} className="w-full mt-6 bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-3xl shadow-xl shadow-red-900/30 active:scale-95 transition-all tracking-widest text-sm">📡 ENVIAR AL NACHIMBONG</button>
+                    <p className="mt-4 text-[10px] font-mono text-gray-500 tracking-tighter animate-pulse">{status}</p>
                 </div>
             );
         };
