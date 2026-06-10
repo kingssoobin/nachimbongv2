@@ -16,9 +16,10 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+            gap: 10px;
         }
-        h2 { color: #ed1c24; margin-bottom: 5px; font-size: 1.2rem; }
-        
+        h2 { color: #ed1c24; font-size: 1.2rem; }
+
         #canvas {
             border: 2px solid #ed1c24;
             background: #000;
@@ -26,17 +27,67 @@
             height: 240px;
             image-rendering: pixelated;
             touch-action: none;
-            margin-bottom: 10px;
             border-radius: 5px;
         }
 
-        .gallery {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
+        /* --- EDITOR DE TEXTO --- */
+        .text-panel {
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 12px;
             width: 100%;
             max-width: 320px;
-            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .text-panel label { font-size: 0.7rem; color: #666; text-align: left; text-transform: uppercase; letter-spacing: 1px; }
+        .text-panel input[type="text"] {
+            width: 100%;
+            padding: 10px 14px;
+            border-radius: 20px;
+            border: 1px solid #444;
+            background: #000;
+            color: white;
+            font-size: 1rem;
+            outline: none;
+        }
+        .text-panel input[type="text"]:focus { border-color: #ed1c24; }
+        .font-row { display: flex; gap: 6px; flex-wrap: wrap; }
+        .font-btn {
+            flex: 1;
+            min-width: 60px;
+            padding: 8px 4px;
+            border-radius: 10px;
+            border: 1px solid #444;
+            background: #000;
+            color: white;
+            cursor: pointer;
+            font-size: 0.75rem;
+        }
+        .font-btn.active { border-color: #ed1c24; color: #ed1c24; }
+        .size-row { display: flex; align-items: center; gap: 8px; }
+        .size-row input[type="range"] { flex: 1; accent-color: #ed1c24; }
+        .size-row span { font-size: 0.8rem; color: #888; min-width: 30px; }
+        #applyTextBtn {
+            padding: 10px;
+            border-radius: 20px;
+            border: none;
+            background: #ed1c24;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        /* --- GALERÍA --- */
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 7px;
+            width: 100%;
+            max-width: 320px;
             background: #111;
             padding: 10px;
             border-radius: 12px;
@@ -52,55 +103,79 @@
             cursor: pointer;
             font-size: 1.2rem;
             color: white;
+            transition: transform 0.1s;
         }
-        .gallery-item.special { border-color: #ed1c24; color: #ed1c24; font-size: 0.7rem; font-weight: bold; }
+        .gallery-item:active { transform: scale(0.9); border-color: #ed1c24; }
 
-        .controls {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            align-items: center;
-            width: 100%;
-            max-width: 300px;
-        }
-        button {
-            width: 100%;
+        /* --- BOTONES --- */
+        .controls { display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 320px; }
+        .btn-row { display: flex; gap: 8px; }
+        button.main-btn {
+            flex: 1;
             padding: 14px;
             font-weight: bold;
             border-radius: 25px;
             border: none;
             cursor: pointer;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
         }
         #sendBtn { background: #ed1c24; color: white; }
-        #reconnectBtn { background: #000; color: #ed1c24; border: 1px solid #ed1c24; padding: 8px; font-size: 0.7rem; border-radius: 10px; width: auto; margin-top: 5px; }
-        #clearBtn { background: #222; color: #aaa; }
-        
-        #status { color: #888; font-size: 0.8em; margin-top: 10px; min-height: 20px; }
+        #clearBtn { background: #222; color: #aaa; border: 1px solid #333; }
+        #reconnectBtn { background: #000; color: #1e90ff; border: 1px solid #1e90ff; }
+        #resetDevBtn { background: #000; color: #ff9900; border: 1px solid #ff9900; }
+
+        #status { color: #888; font-size: 0.8em; min-height: 20px; }
     </style>
 </head>
 <body>
 
     <h2>OLED Studio</h2>
-    <button id="reconnectBtn" onclick="initBT()">🔄 RECONECTAR BLUETOOTH</button>
 
     <canvas id="canvas" width="128" height="128"></canvas>
 
+    <!-- EDITOR DE TEXTO -->
+    <div class="text-panel">
+        <label>✏️ Agregar Texto</label>
+        <input type="text" id="textInput" placeholder="Escribe aquí..." maxlength="20">
+        <label>Fuente:</label>
+        <div class="font-row">
+            <button class="font-btn active" data-font="Arial" onclick="selectFont(this)">Normal</button>
+            <button class="font-btn" data-font="serif" onclick="selectFont(this)">Serif</button>
+            <button class="font-btn" data-font="monospace" onclick="selectFont(this)">Mono</button>
+            <button class="font-btn" data-font="fantasy" onclick="selectFont(this)">Fantasy</button>
+        </div>
+        <label>Tamaño: <span id="sizeVal">24</span>px</label>
+        <div class="size-row">
+            <input type="range" id="fontSize" min="8" max="60" value="24" oninput="document.getElementById('sizeVal').innerText=this.value">
+        </div>
+        <button id="applyTextBtn" onclick="applyText()">APLICAR TEXTO AL CANVAS</button>
+    </div>
+
+    <!-- GALERÍA DE ICONOS -->
     <div class="gallery">
-        <div class="gallery-item special" onclick="loadStrayCity()">CITY</div>
         <div class="gallery-item" onclick="loadIcon('❤️')">❤️</div>
         <div class="gallery-item" onclick="loadIcon('⭐')">⭐</div>
         <div class="gallery-item" onclick="loadIcon('⚡')">⚡</div>
         <div class="gallery-item" onclick="loadIcon('🔥')">🔥</div>
         <div class="gallery-item" onclick="loadIcon('👑')">👑</div>
         <div class="gallery-item" onclick="loadIcon('🐺')">🐺</div>
-        <div class="gallery-item" onclick="loadIcon('🎨')">🖌️</div>
+        <div class="gallery-item" onclick="loadIcon('🌙')">🌙</div>
+        <div class="gallery-item" onclick="loadIcon('✨')">✨</div>
+        <div class="gallery-item" onclick="loadIcon('🎵')">🎵</div>
+        <div class="gallery-item" onclick="loadIcon('💎')">💎</div>
     </div>
 
+    <!-- CONTROLES -->
     <div class="controls">
-        <button id="clearBtn" onclick="clearCanvas()">LIMPIAR LIENZO</button>
-        <button id="sendBtn" onclick="transferOled()">ENVIAR A LA PANTALLA</button>
-        <div id="status">Iniciando Bluetooth...</div>
+        <div class="btn-row">
+            <button class="main-btn" id="clearBtn" onclick="clearCanvas()">🧹 LIMPIAR</button>
+            <button class="main-btn" id="sendBtn" onclick="transferOled()">📡 ENVIAR</button>
+        </div>
+        <div class="btn-row">
+            <button class="main-btn" id="reconnectBtn" onclick="initBT()">🔄 RECONECTAR BT</button>
+            <button class="main-btn" id="resetDevBtn" onclick="resetDevice()">🔁 REINICIAR DISP.</button>
+        </div>
+        <div id="status">Iniciando...</div>
     </div>
 
     <script>
@@ -108,17 +183,48 @@
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         const status = document.getElementById('status');
         let isDrawing = false;
+        let selectedFont = "Arial";
 
+        // --- BLUETOOTH ---
         function initBT() {
-            status.innerText = "Buscando Nachimbong...";
+            status.innerText = "Conectando Nachimbong...";
             try {
                 if (window.bridge) {
                     window.bridge.blePairingStart("");
+                    status.innerText = "Emparejando...";
                 } else if (window.webkit?.messageHandlers?.blePairingStart) {
                     window.webkit.messageHandlers.blePairingStart.postMessage("");
+                    status.innerText = "Emparejando (iOS)...";
+                } else {
+                    status.innerText = "Bridge no disponible.";
                 }
             } catch(e) {
-                status.innerText = "Error al conectar: " + e.message;
+                status.innerText = "Error BT: " + e.message;
+            }
+        }
+
+        // Reiniciar SOLO el dispositivo Nachimbong (sin recargar la página)
+        function resetDevice() {
+            status.innerText = "Reiniciando Nachimbong...";
+            try {
+                // Comando de reinicio del dispositivo (no de la página)
+                const resetCmd = "8110,-";
+                if (window.bridge) {
+                    window.bridge.bleSendCmdList(resetCmd);
+                    setTimeout(() => {
+                        window.bridge.bleDisconnect("");
+                        setTimeout(initBT, 2000); // Reconectar tras 2s
+                    }, 500);
+                } else if (window.webkit?.messageHandlers?.bleSendCmdList) {
+                    window.webkit.messageHandlers.bleSendCmdList.postMessage(resetCmd);
+                    setTimeout(() => {
+                        window.webkit.messageHandlers.bleDisconnect?.postMessage("");
+                        setTimeout(initBT, 2000);
+                    }, 500);
+                }
+                status.innerText = "Reiniciando... reconectando en 2s";
+            } catch(e) {
+                status.innerText = "Error al reiniciar: " + e.message;
             }
         }
 
@@ -142,32 +248,49 @@
             ctx.fill();
         }
 
-        function clearCanvas() { ctx.fillStyle = "black"; ctx.fillRect(0, 0, 128, 128); saveCanvas(); }
+        function clearCanvas() {
+            ctx.fillStyle = "black";
+            ctx.fillRect(0, 0, 128, 128);
+            saveCanvas();
+            status.innerText = "Lienzo limpiado.";
+        }
         function saveCanvas() { localStorage.setItem('last_oled_img', canvas.toDataURL()); }
 
-        function loadStrayCity() {
-            clearCanvas();
-            const img = new Image();
-            img.onload = function() {
-                const scale = Math.min(128 / img.width, 128 / img.height);
-                ctx.drawImage(img, (128 - img.width * scale) / 2, (128 - img.height * scale) / 2, img.width * scale, img.height * scale);
-                saveCanvas();
-                status.innerText = "CITY cargado. ¡Listo para enviar!";
-            };
-            img.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAAAXNSR0IArs4c6QAAArVJREFUeF7t28tRBAEMRFFDCIzAKTAB52AM9pAExmAk7p2mO0A190vT2PZ6v6fX6XW6MvAnC/zJUve9DTAI/AmA78UAg0AnAL4XAwYBnQAAY0AHYADoAByAAaADcAAGgA7AAdABOAAH4ADcs8CO9/0+p/vT6f6NHz08p9OnY3AATidgB/D/CHAAfofYAbidp9N966fDAdidgB/A7Syd7ls/HQ7A7gT8AG5n6XTf+ulwAHYn4AdwO0un+9ZPhwOwOwE/gNtZOt23fjocgN0J+AHcztLpvvXT4QDsTsAP4HaWTvetnw4HYHcCfgC3s3S6b/10OAC7E/ADuJ2l033rp8MB2J2AH8DtLJ3uWz8dDsDuBPwAbmfpdN/66XAApwn8nZ/73tXp/nd6v73vunU4AAfg9MUC7Bv39v8I7ADuN7S96qfDATgAn4DtE7f9P2R2APdv2Hev+ulwAA7AJ2D7pG3/Z8vsAO7vsO9v/XQ4AAfgE7B98rb/59rsAO7f8PdWv344fToAn4BPAHw/BvA9O4D7DX1f9euH06cD8An4BMD3YwDfswO439D3Vb9+OH06AJ8ATAB8TwbwLTuA21m6Xz98On8F7ADuN7S96qfDAdidgB/A7Syd7ls/HQ7A7gT8AG5n6XTf+ulwAHYn4AdwO0un+9ZPhwOwOwE/gNtZOt23fjocgN0J+AHcztLpvvXT4QDsTsAP4HaWTvetnw4HYHcCfgC3s3S6b/10OAC7E/ADuJ2l033rp8MB2J2AH8DtLJ3uWz8dDsDuBPwAbmfpdN/66XAApwn8nd/73tXp/nd6v73vunU4AAfg9MUC7Bv39v+I4HSA6Q99v/9C9X9Yv347OYA/Cej76A96v6dfXb9vEOD7McAg0AmA78WAAXAAzoAOGADYnS/Tz+m+P50+XW6f/gAs76Y0B18X3QAAAABJRU5ErkJggg==";
+        // --- EDITOR DE TEXTO ---
+        function selectFont(btn) {
+            document.querySelectorAll('.font-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            selectedFont = btn.dataset.font;
         }
 
+        function applyText() {
+            const text = document.getElementById('textInput').value.trim();
+            if (!text) { status.innerText = "⚠️ Escribe algo primero."; return; }
+            const size = parseInt(document.getElementById('fontSize').value);
+            ctx.fillStyle = "white";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.font = `bold ${size}px ${selectedFont}`;
+            ctx.fillText(text, 64, 64);
+            saveCanvas();
+            status.innerText = `Texto "${text}" aplicado.`;
+        }
+
+        // --- GALERÍA DE ICONOS ---
         function loadIcon(emoji) {
             clearCanvas();
             ctx.fillStyle = "white";
-            ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.font = "90px Arial";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.font = "90px Arial";
             ctx.fillText(emoji, 64, 68);
             saveCanvas();
             status.innerText = "Icono cargado.";
         }
 
+        // --- ENVÍO AL NACHIMBONG ---
         async function transferOled() {
-            status.innerText = "Iniciando transferencia...";
+            status.innerText = "Preparando...";
             const imgData = ctx.getImageData(0, 0, 128, 128).data;
             let oledBytes = new Uint8Array(2048);
 
@@ -188,18 +311,16 @@
 
                 try {
                     if (window.bridge) window.bridge.bleSendCmdList(cmd);
-                    else if (window.webkit?.messageHandlers?.bleSendCmdList) 
+                    else if (window.webkit?.messageHandlers?.bleSendCmdList)
                         window.webkit.messageHandlers.bleSendCmdList.postMessage(cmd);
-                    
                     status.innerText = `Enviando: ${Math.round(((part+1)/16)*100)}%`;
                     await new Promise(r => setTimeout(r, 150));
                 } catch(e) {
-                    status.innerText = "⚠️ Fallo en parte " + (part+1);
+                    status.innerText = "⚠️ Error en parte " + (part+1);
                     return;
                 }
             }
-
-            status.innerText = "✅ ¡Enviado!";
+            status.innerText = "✅ ¡Enviado correctamente!";
         }
 
         window.onload = () => {
