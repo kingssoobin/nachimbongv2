@@ -3,21 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nachimbong OLED Studio V3</title>
+    <title>Nachimbong OLED Studio V3.1</title>
     <script src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Orbitron:wght@700&family=Permanent+Marker&family=VT323&family=Creepster&family=Russo+One&family=Bangers&family=Bungee&family=Audiowide&display=swap');
-        body { background: #000; color: #fff; touch-action: none; overflow-x: hidden; }
-        .oled-border { border: 4px solid #ed1c24; box-shadow: 0 0 25px rgba(237,28,36,0.3); }
-        canvas { display: block; image-rendering: pixelated; }
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Orbitron:wght@700&family=Russo+One&family=Bungee&family=Audiowide&display=swap');
+        body { background: #000; color: #fff; touch-action: none; overflow-x: hidden; font-family: sans-serif; }
+        .oled-border { border: 2px solid #ed1c24; box-shadow: 0 0 15px rgba(237,28,36,0.3); }
+        canvas { display: block; image-rendering: pixelated; background-color: #0a0a0a; }
         input[type=range] { accent-color: #ed1c24; }
-        .grid-overlay {
-            position: absolute; inset: 0; pointer-events: none;
-            background-image: linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px),
-                              linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px);
+        .grid-bg {
+            background-image: radial-gradient(rgba(255,255,255,0.1) 1px, transparent 1px);
+            background-size: 8px 8px;
         }
     </style>
 </head>
@@ -29,254 +28,202 @@
         const App = () => {
             const [tab, setTab] = useState("text");
             const [bleStatus, setBleStatus] = useState("Desconectado");
-            const [status, setStatus] = useState("🎨 Diseña para tu Nachimbong");
+            const [status, setStatus] = useState("🎨 Diseña para tu OLED");
 
-            // Bluetooth
+            // Refs
             const bleDev = useRef(null);
             const bleChr = useRef(null);
-            const svcUuid = "0000fff0-0000-1000-8000-00805f9b34fb";
-            const chrUuid = "0000fff1-0000-1000-8000-00805f9b34fb";
-
-            // Drawing
             const gridCanvasRef = useRef(null);
+            const textCanvasRef = useRef(null);
             const pixels = useRef(new Uint8Array(128 * 128));
-            const [zoom, setZoom] = useState(4);
-            const [brushSize, setBrushSize] = useState(1);
-            const [tool, setTool] = useState("pen");
             const isDrawing = useRef(false);
 
-            // Text
-            const textCanvasRef = useRef(null);
-            const [numLines, setNumLines] = useState(1);
+            // State
+            const [zoom, setZoom] = useState(2);
+            const [brushSize, setBrushSize] = useState(2);
+            const [tool, setTool] = useState("pen");
             const [texts, setTexts] = useState(["STRAY KIDS", "STAY", ""]);
+            const [numLines, setNumLines] = useState(1);
             const [font, setFont] = useState("Russo One");
             const [fontSize, setFontSize] = useState(24);
 
-            // --- LÓGICA DE CONEXIÓN ---
+            // --- REINTENTO DE CONEXIÓN ---
             const connect = async () => {
                 try {
                     setBleStatus("Buscando...");
                     const dev = await navigator.bluetooth.requestDevice({
                         filters: [{ namePrefix: "STRAY KIDS" }],
-                        optionalServices: [svcUuid]
+                        optionalServices: ["0000fff0-0000-1000-8000-00805f9b34fb"]
                     });
                     bleDev.current = dev;
-                    setBleStatus("Conectando...");
                     const server = await dev.gatt.connect();
-                    const service = await server.getPrimaryService(svcUuid);
-                    bleChr.current = await service.getCharacteristic(chrUuid);
+                    const service = await server.getPrimaryService("0000fff0-0000-1000-8000-00805f9b34fb");
+                    bleChr.current = await service.getCharacteristic("0000fff1-0000-1000-8000-00805f9b34fb");
                     setBleStatus("Conectado ✅");
-                    setStatus("Conexión exitosa!");
+                    setStatus("Nachimbong conectado!");
                 } catch (e) {
                     setBleStatus("Error");
-                    setStatus("Error: " + e.message);
+                    setStatus("Error BLE: " + e.message);
                 }
             };
 
-            // --- LÓGICA DE PINCEL (ARRASTRE) ---
-            const handleDrawAction = (e) => {
-                if (!isDrawing.current || !gridCanvasRef.current) return;
+            // --- LÓGICA DE DIBUJO ---
+            const refreshGrid = () => {
+                const canvas = gridCanvasRef.current;
+                if (!canvas) return;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = "#000";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = "#fff";
+                for (let i = 0; i < 128 * 128; i++) {
+                    if (pixels.current[i]) {
+                        const r = Math.floor(i / 128);
+                        const c = i % 128;
+                        ctx.fillRect(c * zoom, r * zoom, zoom, zoom);
+                    }
+                }
+            };
 
+            useEffect(() => { if (tab === "draw") setTimeout(refreshGrid, 50); }, [tab, zoom]);
+
+            const handlePaint = (e) => {
+                if (!isDrawing.current || !gridCanvasRef.current) return;
                 const canvas = gridCanvasRef.current;
                 const rect = canvas.getBoundingClientRect();
-
-                // Soporte para Touch (móvil) y Mouse
                 const clientX = e.touches ? e.touches[0].clientX : e.clientX;
                 const clientY = e.touches ? e.touches[0].clientY : e.clientY;
 
-                const x = Math.floor((clientX - rect.left) / zoom);
-                const y = Math.floor((clientY - rect.top) / zoom);
+                const col = Math.floor((clientX - rect.left) / (rect.width / 128));
+                const row = Math.floor((clientY - rect.top) / (rect.height / 128));
 
-                if (x < 0 || x >= 128 || y < 0 || y >= 128) return;
+                if (col >= 0 && col < 128 && row >= 0 && row < 128) {
+                    const ctx = canvas.getContext('2d');
+                    const val = tool === "pen" ? 1 : 0;
+                    const radius = Math.floor(brushSize / 2);
 
-                const ctx = canvas.getContext('2d');
-                const val = tool === "eraser" ? 0 : 1;
-                const radius = Math.floor(brushSize / 2);
-
-                for (let dr = -radius; dr <= radius; dr++) {
-                    for (let dc = -radius; dc <= radius; dc++) {
-                        const r = y + dr, c = x + dc;
-                        if (r >= 0 && r < 128 && c >= 0 && c < 128) {
-                            pixels.current[r * 128 + c] = val;
-                            ctx.fillStyle = val ? "white" : "black";
-                            ctx.fillRect(c * zoom, r * zoom, zoom, zoom);
+                    for (let dr = -radius; dr <= radius; dr++) {
+                        for (let dc = -radius; dc <= radius; dc++) {
+                            const r = row + dr, c = col + dc;
+                            if (r >= 0 && r < 128 && c >= 0 && c < 128) {
+                                pixels.current[r * 128 + c] = val;
+                                ctx.fillStyle = val ? "white" : "black";
+                                ctx.fillRect(c * zoom, r * zoom, zoom, zoom);
+                            }
                         }
                     }
                 }
             };
 
-            const startDrawing = (e) => { isDrawing.current = true; handleDrawAction(e); };
-            const stopDrawing = () => { isDrawing.current = false; };
-
-            useEffect(() => {
-                const canvas = gridCanvasRef.current;
-                if (tab === "draw" && canvas) {
-                    const ctx = canvas.getContext('2d');
-                    ctx.fillStyle = "black"; ctx.fillRect(0,0, 128*zoom, 128*zoom);
-                    ctx.fillStyle = "white";
-                    for(let i=0; i<pixels.current.length; i++) {
-                        if(pixels.current[i]) {
-                            const r = Math.floor(i/128), c = i%128;
-                            ctx.fillRect(c*zoom, r*zoom, zoom, zoom);
-                        }
-                    }
-                }
-            }, [tab, zoom]);
-
-            // --- RENDER TEXTO ---
+            // --- TEXTO ---
             useEffect(() => {
                 if (tab === "text" && textCanvasRef.current) {
                     const ctx = textCanvasRef.current.getContext('2d');
                     ctx.fillStyle = "black"; ctx.fillRect(0,0,128,128);
-                    ctx.fillStyle = "white";
-                    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                    ctx.fillStyle = "white"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
                     ctx.font = `bold ${fontSize}px ${font}`;
                     const active = texts.slice(0, numLines);
-                    const lh = fontSize * 1.1;
-                    const startY = 64 - ((active.length - 1) * lh) / 2;
+                    const startY = 64 - ((active.length - 1) * (fontSize * 1.1)) / 2;
                     active.forEach((t, i) => {
-                        const y = startY + i*lh;
-                        ctx.strokeStyle = "black"; ctx.lineWidth = 4;
-                        ctx.strokeText(t.toUpperCase(), 64, y);
-                        ctx.fillText(t.toUpperCase(), 64, y);
+                        ctx.fillText(t.toUpperCase(), 64, startY + i * (fontSize * 1.1));
                     });
                 }
             }, [tab, texts, numLines, font, fontSize]);
 
             // --- ENVIAR ---
-            const parseAndSend = async () => {
+            const send = async () => {
                 let data = new Uint8Array(2048);
                 if (tab === "text") {
-                    const ctx = textCanvasRef.current.getContext('2d');
-                    const img = ctx.getImageData(0,0,128,128).data;
+                    const img = textCanvasRef.current.getContext('2d').getImageData(0,0,128,128).data;
                     for (let p=0; p<16; p++) {
                         for (let c=0; c<128; c++) {
                             let b = 0;
-                            for (let bit=0; bit<8; bit++) {
-                                if (img[((p*8+bit)*128+c)*4] > 128) b |= (1 << bit);
-                            }
+                            for (let bit=0; bit<8; bit++) if (img[((p*8+bit)*128+c)*4] > 128) b |= (1 << bit);
                             data[p*128+c] = b;
                         }
                     }
                 } else {
-                    const px = pixels.current;
                     for (let p=0; p<16; p++) {
                         for (let c=0; c<128; c++) {
                             let b = 0;
-                            for (let bit=0; bit<8; bit++) {
-                                if (px[(p*8+bit)*128+c]) b |= (1 << bit);
-                            }
+                            for (let bit=0; bit<8; bit++) if (pixels.current[(p*8+bit)*128+c]) b |= (1 << bit);
                             data[p*128+c] = b;
                         }
                     }
                 }
 
-                if (!bleChr.current) {
-                    setStatus("❌ No conectado. Pulsa CONECTAR BLE.");
-                    return;
-                }
-
-                setStatus("📡 Transfiriendo...");
+                if (!bleChr.current) return setStatus("⚠️ Conecta el Bluetooth primero");
+                setStatus("📡 Enviando...");
                 try {
                     for (let i = 0; i < data.length; i += 20) {
                         await bleChr.current.writeValue(new Uint8Array(data.slice(i, i + 20)));
                     }
-                    setStatus("✅ Diseño enviado con éxito!");
+                    setStatus("✅ Diseño enviado!");
                 } catch (e) {
-                    setStatus("❌ Error: Posible desconexión.");
-                    setBleStatus("Desconectado");
-                    bleChr.current = null;
+                    setStatus("❌ Error envío");
                 }
             };
 
             return (
                 <div className="flex flex-col items-center min-h-screen p-4 max-w-lg mx-auto">
-                    <header className="w-full flex justify-between items-center mb-4 bg-gray-900 p-3 rounded-2xl border border-gray-800">
-                        <div className="flex flex-col">
-                            <span className="text-[8px] text-gray-500 uppercase">Bluetooth</span>
-                            <span className="text-[10px] font-black text-red-500">{bleStatus}</span>
-                        </div>
-                        <button onClick={connect} className="bg-red-600 hover:bg-red-500 px-5 py-2 rounded-xl text-[10px] font-black transition-all active:scale-95">CONECTAR LIGHT STICK</button>
-                    </header>
+                    <button onClick={connect} className="w-full mb-4 bg-gray-900 border border-red-900 p-3 rounded-2xl flex justify-between items-center active:scale-95 transition-all">
+                        <span className="text-[10px] font-black text-red-500 uppercase tracking-widest">{bleStatus}</span>
+                        <span className="bg-red-600 px-3 py-1 rounded-lg text-[10px] font-bold">CONECTAR</span>
+                    </button>
 
-                    <nav className="flex w-full gap-1 mb-6 bg-gray-900 p-1 rounded-2xl">
-                        <button onClick={() => setTab("text")} className={`flex-1 py-3 text-[10px] font-black rounded-xl transition-all ${tab==="text"?"bg-black text-red-500 shadow-inner":"text-gray-500"}`}>MENSAJE TEXTO</button>
-                        <button onClick={() => setTab("draw")} className={`flex-1 py-3 text-[10px] font-black rounded-xl transition-all ${tab==="draw"?"bg-black text-red-500 shadow-inner":"text-gray-500"}`}>DIBUJO LIBRE</button>
+                    <nav className="flex w-full gap-1 mb-6 bg-gray-900 p-1 rounded-2xl border border-gray-800">
+                        <button onClick={() => setTab("text")} className={`flex-1 py-3 text-[10px] font-black rounded-xl ${tab==="text"?"bg-black text-red-600":"text-gray-500"}`}>MENSAJE</button>
+                        <button onClick={() => setTab("draw")} className={`flex-1 py-3 text-[10px] font-black rounded-xl ${tab==="draw"?"bg-black text-red-600":"text-gray-500"}`}>DIBUJO</button>
                     </nav>
 
-                    {tab === "text" ? (
-                        <div className="w-full space-y-6">
-                            <div className="oled-border mx-auto rounded-lg bg-black relative p-1" style={{width:264, height:264}}>
-                                <canvas ref={textCanvasRef} width="128" height="128" style={{width:256, height:256}} />
-                                <div className="grid-overlay rounded-lg"></div>
+                    <div className="oled-border bg-black rounded-lg overflow-hidden mb-6 relative" style={{width: 256, height: 256}}>
+                        {tab === "text" ? (
+                            <canvas ref={textCanvasRef} width="128" height="128" style={{width:256, height:256}} />
+                        ) : (
+                            <canvas 
+                                ref={gridCanvasRef} 
+                                width={128*zoom} height={128*zoom} 
+                                onMouseDown={() => isDrawing.current = true}
+                                onMouseMove={handlePaint}
+                                onMouseUp={() => isDrawing.current = false}
+                                onTouchStart={() => isDrawing.current = true}
+                                onTouchMove={handlePaint}
+                                onTouchEnd={() => isDrawing.current = false}
+                                style={{width: 256, height: 256}}
+                                className="cursor-crosshair"
+                            />
+                        )}
+                        <div className="absolute inset-0 grid-bg pointer-events-none opacity-20"></div>
+                    </div>
+
+                    {tab === "draw" && (
+                        <div className="w-full bg-gray-900 p-4 rounded-3xl border border-gray-800 mb-6 flex justify-between items-center gap-3">
+                            <div className="flex gap-2">
+                                <button onClick={() => setTool("pen")} className={`w-10 h-10 rounded-xl border flex items-center justify-center text-lg ${tool==="pen"?"bg-red-600 border-red-600":"border-gray-700 bg-black"}`}>✏️</button>
+                                <button onClick={() => setTool("eraser")} className={`w-10 h-10 rounded-xl border flex items-center justify-center text-lg ${tool==="eraser"?"bg-red-600 border-red-600":"border-gray-700 bg-black"}`}>🧹</button>
                             </div>
-                            <div className="bg-gray-900 p-5 rounded-3xl space-y-4 border border-gray-800">
-                                <div className="flex gap-2">
-                                    {[1, 2, 3].map(n => (
-                                        <button key={n} onClick={() => setNumLines(n)} className={`flex-1 py-2 text-[10px] font-bold rounded-xl border ${numLines===n?"bg-red-600 border-red-600":"border-gray-800 text-gray-400"}`}>{n} LÍN.</button>
-                                    ))}
-                                </div>
-                                {texts.slice(0, numLines).map((t, i) => (
-                                    <input key={i} value={t} onChange={e => { const n = [...texts]; n[i] = e.target.value; setTexts(n); }} 
-                                        className="w-full bg-black border border-gray-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none border-l-4 border-l-red-600" placeholder={`Escribe línea ${i+1}`} />
-                                Roach))}
-                                <div className="grid grid-cols-4 gap-1">
-                                    {["Russo One", "'Press Start 2P'", "Orbitron", "Bungee", "Permanent Marker", "Creepster", "VT323", "Audiowide"].map(f => (
-                                        <button key={f} onClick={() => setFont(f)} className={`py-2 border rounded-xl text-[8px] truncate ${font===f?"border-red-600 bg-red-950 text-red-500":"border-gray-800 text-gray-500"}`} style={{fontFamily:f}}>{f.replace(/'/g, '')}</button>
-                                    ))}
-                                </div>
-                                <div className="flex justify-between items-center pt-2">
-                                    <span className="text-[10px] text-gray-500 uppercase">Tamaño: {fontSize}px</span>
-                                    <input type="range" min="12" max="50" value={fontSize} onChange={e => setFontSize(+e.target.value)} className="w-1/2 h-1" />
-                                </div>
+                            <div className="flex-1 space-y-1">
+                                <div className="flex justify-between text-[8px] text-gray-500 font-bold"><span>PINCEL</span><span>{brushSize}PX</span></div>
+                                <input type="range" min="1" max="12" value={brushSize} onChange={e => setBrushSize(+e.target.value)} className="w-full h-1" />
                             </div>
+                            <button onClick={() => {pixels.current.fill(0); refreshGrid();}} className="text-[8px] font-black border border-red-900 text-red-500 px-3 py-2 rounded-lg">LIMPIAR</button>
                         </div>
-                    ) : (
-                        <div className="w-full space-y-6">
-                            <div className="oled-border mx-auto rounded-lg bg-black relative p-1 overflow-hidden" style={{maxWidth:264, maxHeight:264}}>
-                                <canvas 
-                                    ref={gridCanvasRef} 
-                                    width={128*zoom} height={128*zoom} 
-                                    onMouseDown={startDrawing}
-                                    onMouseMove={handleDrawAction}
-                                    onMouseUp={stopDrawing}
-                                    onMouseLeave={stopDrawing}
-                                    onTouchStart={startDrawing}
-                                    onTouchMove={handleDrawAction}
-                                    onTouchEnd={stopDrawing}
-                                    style={{width: 256, height: 256}}
-                                />
-                                <div className="grid-overlay pointer-events-none"></div>
-                            </div>
-                            <div className="bg-gray-900 p-5 rounded-3xl space-y-5 border border-gray-800">
-                                <div className="flex justify-between items-center">
-                                    <div className="flex gap-2">
-                                        <button onClick={() => setTool("pen")} className={`w-12 h-12 rounded-2xl border flex items-center justify-center text-xl ${tool==="pen"?"bg-red-600 border-red-600 shadow-lg shadow-red-900/50":"border-gray-700 bg-black"}`}>✏️</button>
-                                        <button onClick={() => setTool("eraser")} className={`w-12 h-12 rounded-2xl border flex items-center justify-center text-xl ${tool==="eraser"?"bg-red-600 border-red-600 shadow-lg shadow-red-900/50":"border-gray-700 bg-black"}`}>🧹</button>
-                                    </div>
-                                    <button onClick={() => { if(confirm('¿Borrar todo?')) pixels.current.fill(0); setTab(t=>t==='draw'?'draw':'draw') }} className="text-red-500 text-[10px] font-black uppercase tracking-widest border border-red-900 px-4 py-2 rounded-xl bg-red-950/20">Limpiar Todo</button>
-                                </div>
-                                <div className="space-y-2">
-                                    <div className="flex justify-between items-center text-[10px] text-gray-500 uppercase">
-                                        <span>Grosor Pincel: {brushSize}</span>
-                                        <span>Zoom Trabajo: {zoom}x</span>
-                                    </div>
-                                    <input type="range" min="1" max="10" value={brushSize} onChange={e => setBrushSize(+e.target.value)} className="w-full h-1" />
-                                    <div className="flex gap-1 pt-2">
-                                        {[2, 4, 6, 8].map(z => (
-                                            <button key={z} onClick={() => setZoom(z)} className={`flex-1 py-1 rounded-lg border text-[10px] font-bold ${zoom===z?"bg-gray-800 border-red-600 text-red-500":"border-gray-800 text-gray-500"}`}>{z}x</button>
-                                        ))}
-                                    </div>
-                                </div>
+                    )}
+
+                    {tab === "text" && (
+                        <div className="w-full bg-gray-900 p-4 rounded-3xl border border-gray-800 mb-6 space-y-3">
+                            <input value={texts[0]} onChange={e => setTexts([e.target.value, texts[1]])} className="w-full bg-black border border-gray-800 rounded-xl px-4 py-2 text-sm focus:border-red-600 outline-none" placeholder="Texto..." />
+                            <div className="flex gap-2 text-[10px]">
+                                {["Russo One", "Orbitron", "Bungee", "VT323"].map(f => (
+                                    <button key={f} onClick={() => setFont(f)} className={`flex-1 py-2 border rounded-lg ${font===f?"border-red-600 text-red-500":"border-gray-800"}`} style={{fontFamily:f}}>{f}</button>
+                                ))}
                             </div>
                         </div>
                     )}
 
-                    <button onClick={parseAndSend} 
-                        className="w-full mt-8 bg-red-600 hover:bg-red-500 text-white font-black py-5 rounded-3xl shadow-2xl shadow-red-900/40 active:scale-95 transition-all tracking-[4px] text-xs">
-                        📡 ENVIAR DISEÑO
+                    <button onClick={send} className="w-full bg-red-600 text-white font-black py-4 rounded-3xl shadow-xl shadow-red-900/30 active:scale-95 transition-all text-xs tracking-widest">
+                        📡 ENVIAR AL NACHIMBONG
                     </button>
-                    <p className="mt-4 text-[9px] font-mono text-gray-400 uppercase tracking-widest animate-pulse">{status}</p>
+                    <p className="mt-4 text-[9px] font-mono text-gray-500 uppercase tracking-widest animate-pulse">{status}</p>
                 </div>
             );
         };
