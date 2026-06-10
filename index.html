@@ -1,212 +1,123 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Nachimbong OLED Studio</title>
-<link rel="stylesheet" href="styles.css" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <title>Nachimbong V2 OLED Studio</title>
+    <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+
 <header class="topbar">
-  <div class="logo">⚡ Nachimbong <span>OLED Studio</span></div>
-  <nav class="menu">
-    <button class="tab active" data-tab="import">1 · Importar</button>
-    <button class="tab" data-tab="edit">2 · Ajustar</button>
-    <button class="tab" data-tab="preview">3 · Previsualizar</button>
-    <button class="tab" data-tab="export">4 · Exportar / Enviar</button>
-    <button class="tab" data-tab="help">?</button>
-  </nav>
+    <div class="logo">⚡ NACHIMBONG <span>V2 STUDIO</span></div>
+    <div id="bridgeIndicator" class="bridge-badge">Detectando APK...</div>
 </header>
 
 <main>
-  <!-- 1. IMPORT -->
-  <section id="tab-import" class="tab-panel active">
-    <h2>Importar imagen o animación</h2>
-    <p class="hint">Acepta <b>PNG · JPG · BMP · WEBP · GIF animado</b>. La herramienta detecta automáticamente los frames de un GIF. También puedes pegar una imagen del portapapeles (Ctrl+V).</p>
-    <div id="dropzone" class="dropzone">
-      <div class="dz-inner">
-        <div class="dz-icon">📥</div>
-        <div class="dz-text">Arrastra un archivo aquí, haz clic para seleccionar o pega (Ctrl+V)</div>
-        <input type="file" id="fileInput" accept="image/png,image/jpeg,image/webp,image/bmp,image/gif" hidden />
-      </div>
-    </div>
-    <div class="row">
-      <label>Tamaño de pantalla OLED:
-        <select id="oledSize">
-          <option value="64x32" selected>64 × 32 (Nachimbong estándar)</option>
-          <option value="128x32">128 × 32</option>
-          <option value="128x64">128 × 64</option>
-          <option value="96x16">96 × 16</option>
-        </select>
-      </label>
-      <label>Nº de frames de animación:
-        <input type="number" id="frameCount" value="16" min="1" max="64" />
-      </label>
-    </div>
-    <div id="importStatus" class="status"></div>
-  </section>
+    <nav class="tabs">
+        <button class="tab-btn active" data-tab="draw">✏️ Dibujar</button>
+        <button class="tab-btn" data-tab="import">📥 Importar</button>
+        <button class="tab-btn" data-tab="send">📤 Enviar</button>
+    </nav>
 
-  <!-- 2. EDIT -->
-  <section id="tab-edit" class="tab-panel">
-    <h2>Ajustes de conversión</h2>
-    <div class="grid2">
-      <div class="card">
-        <h3>Encaje</h3>
-        <label>Modo de encaje:
-          <select id="fitMode">
-            <option value="contain">Contener (mantener proporciones)</option>
-            <option value="cover" selected>Cubrir (recortar bordes)</option>
-            <option value="stretch">Estirar</option>
-          </select>
-        </label>
-        <label>Rotación:
-          <select id="rotate"><option value="0">0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select>
-        </label>
-        <label><input type="checkbox" id="invert"/> Invertir colores</label>
-        <label><input type="checkbox" id="flipH"/> Espejo horizontal</label>
-        <label><input type="checkbox" id="flipV"/> Espejo vertical</label>
-      </div>
-      <div class="card">
-        <h3>Binarización</h3>
-        <label>Algoritmo:
-          <select id="dither">
-            <option value="threshold">Umbral simple</option>
-            <option value="floyd" selected>Floyd–Steinberg (mejor)</option>
-            <option value="atkinson">Atkinson</option>
-            <option value="bayer">Bayer 4×4 (retro)</option>
-          </select>
-        </label>
-        <label>Brillo: <input type="range" id="brightness" min="-100" max="100" value="0"/> <span id="brightnessVal">0</span></label>
-        <label>Contraste: <input type="range" id="contrast" min="-100" max="100" value="0"/> <span id="contrastVal">0</span></label>
-        <label>Umbral: <input type="range" id="threshold" min="0" max="255" value="128"/> <span id="thresholdVal">128</span></label>
-      </div>
-    </div>
-  </section>
+    <!-- SECCIÓN DIBUJO -->
+    <section id="tab-draw" class="content-panel active">
+        <div class="editor-container">
+            <div class="canvas-card">
+                <div class="canvas-header">
+                    <span>OLED CANVAS (64x32)</span>
+                    <span id="cursorPos">0,0</span>
+                </div>
+                <div class="canvas-frame">
+                    <canvas id="drawCanvas"></canvas>
+                </div>
+                <div class="toolbar">
+                    <button id="toolPen" class="tool active">✏️</button>
+                    <button id="toolErase" class="tool">🧹</button>
+                    <button id="toolFill" class="tool">🪣</button>
+                    <button id="toolInvert" class="tool">🔄</button>
+                    <button id="toolClear" class="tool">🗑️</button>
+                </div>
+            </div>
 
-  <!-- 3. PREVIEW -->
-  <section id="tab-preview" class="tab-panel">
-    <h2>Previsualización en tiempo real</h2>
-    <div class="preview-area">
-      <div class="device-mock">
-        <div class="device-shell">
-          <canvas id="previewCanvas"></canvas>
+            <div class="controls-card">
+                <h3>Texto Rápido</h3>
+                <div class="input-group">
+                    <input type="text" id="drawText" placeholder="Escribe algo..." maxlength="12" value="STRAY KIDS" />
+                    <button id="btnRenderText" class="btn-sec">Render</button>
+                </div>
+                
+                <h3>Animación</h3>
+                <div class="frame-manager">
+                    <div class="btn-grid">
+                        <button id="btnSaveFrame" class="btn-sec">💾 Guardar Frame</button>
+                        <button id="btnClearFrames" class="btn-danger">🗑️ Limpiar</button>
+                    </div>
+                    <div id="frameCount" class="frame-count">0 frames guardados</div>
+                    <div id="frameThumbs" class="thumbs"></div>
+                </div>
+
+                <div class="action-zone">
+                    <button id="btnPrepareDraw" class="btn-main">PREPARAR PARA ENVIAR →</button>
+                </div>
+            </div>
         </div>
-        <div class="device-label">Pantalla OLED · <span id="resLabel">64×32</span></div>
-      </div>
-      <div class="preview-controls">
-        <label>Frame:
-          <input type="range" id="frameSlider" min="0" max="0" value="0"/>
-          <span id="frameLabel">0 / 0</span>
-        </label>
-        <label>FPS reproducción:
-          <input type="number" id="fps" value="12" min="1" max="60"/>
-        </label>
-        <div class="btns">
-          <button id="playBtn">▶ Reproducir</button>
-          <button id="stopBtn">■ Detener</button>
-        </div>
-        <label>Zoom de muestra:
-          <input type="range" id="zoom" min="2" max="16" value="8"/>
-        </label>
-      </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- 4. EXPORT -->
-  <section id="tab-export" class="tab-panel">
-    <h2>Exportar / Enviar al nachimbong</h2>
-    <div class="grid2">
-      <div class="card">
-        <h3>Formato de salida</h3>
-        <label>Formato:
-          <select id="exportFormat">
-            <option value="hex" selected>Hex string (formato nachimbong nativo)</option>
-            <option value="bin">Binario .bin (descarga)</option>
-            <option value="c">Array C/C++ (PROGMEM, Adafruit GFX)</option>
-            <option value="json">JSON (frames + meta)</option>
-            <option value="u8g2">U8g2 XBM</option>
-          </select>
-        </label>
-        <label>Orden de bits:
-          <select id="bitOrder">
-            <option value="page-lsb" selected>Page-byte LSB-top (SSD1306 / nachimbong)</option>
-            <option value="page-msb">Page-byte MSB-top</option>
-            <option value="row-msb">Row-byte MSB-left (XBM)</option>
-          </select>
-        </label>
-        <button id="genBtn" class="primary">Generar datos</button>
-        <button id="dlBtn">⤓ Descargar archivo</button>
-        <button id="copyBtn">⧉ Copiar al portapapeles</button>
-        <pre id="output" class="output"></pre>
-      </div>
-      <div class="card">
-        <h3>Enviar al dispositivo</h3>
-        <div id="bridgeStatus" class="status" style="margin-bottom:8px;">Detectando entorno...</div>
-        <p class="hint">
-          Si abres esta página dentro de la <b>app oficial modificada</b>, se usará la conexión
-          nativa <code>window.bridge</code> automáticamente (más estable).
-        </p>
-        <p class="hint">
-          Si usas Chrome/Edge directamente, intentará <b>Web Bluetooth</b> (puede fallar con el Nachimbong V2).
-        </p>
-        <label>UUID Servicio BLE: <input id="svcUuid" value="0000fff0-0000-1000-8000-00805f9b34fb"/></label>
-        <label>UUID Característica escritura: <input id="chrUuid" value="0000fff1-0000-1000-8000-00805f9b34fb"/></label>
-        <label>Tamaño de chunk (bytes): <input id="chunkSize" type="number" value="20" min="1" max="512"/></label>
-        <div class="btns">
-          <button id="connectBtn">🔗 Conectar</button>
-          <button id="sendBtn" class="primary">📤 Enviar al nachimbong</button>
+    <!-- SECCIÓN IMPORTAR -->
+    <section id="tab-import" class="content-panel">
+        <div class="card">
+            <h3>Subir Imagen o GIF</h3>
+            <div id="dropzone" class="dropzone">
+                <div class="dz-content">
+                    <span class="dz-icon">🖼️</span>
+                    <p>Toca para seleccionar o arrastra un archivo</p>
+                    <span class="hint">PNG, JPG, BMP o GIF Animado</span>
+                </div>
+                <input type="file" id="fileInput" accept="image/*" hidden />
+            </div>
+            
+            <div class="settings-grid">
+                <div class="s-card">
+                    <h4>Brillo</h4>
+                    <input type="range" id="brightness" min="-100" max="100" value="0">
+                </div>
+                <div class="s-card">
+                    <h4>Contraste</h4>
+                    <input type="range" id="contrast" min="-100" max="100" value="0">
+                </div>
+            </div>
+            <button id="btnPrepareImport" class="btn-main">USAR ESTA IMAGEN →</button>
         </div>
-        <div id="bleStatus" class="status">Estado: desconectado</div>
-      </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- HELP -->
-  <section id="tab-help" class="tab-panel">
-    <h2>Documentación rápida</h2>
-    <ol>
-      <li><b>Importar</b> una imagen o GIF animado. Si es un GIF, cada frame se conserva. Si es estático, se duplica al nº de frames indicado.</li>
-      <li>En <b>Ajustar</b>, configura encaje, rotación, brillo/contraste y el algoritmo de <i>dithering</i>. <b>Floyd–Steinberg</b> da el mejor resultado para fotos.</li>
-      <li>En <b>Previsualizar</b> mira cómo se verá en el OLED real (escala configurable). Pulsa ▶ para animar.</li>
-      <li>En <b>Exportar</b> elige el formato:
-        <ul>
-          <li><code>Hex nativo</code>: 16 frames × 256 bytes (compatible con el formato del bundle oficial).</li>
-          <li><code>.bin</code> · <code>Array C</code> · <code>JSON</code> · <code>U8g2 XBM</code>.</li>
-        </ul>
-      </li>
-      <li><b>Enviar</b>: si usas el APK modificado, pulsa <b>Conectar</b> y el puente nativo se encargará del BLE. Si usas Chrome directo, intentará Web Bluetooth.</li>
-    </ol>
-    <h3>Formato nachimbong (detectado por ingeniería inversa)</h3>
-    <pre>
-Skin = Array&lt;Frame&gt;          // típicamente 16 frames
-Frame = string hex 512 chars  // = 256 bytes
-Layout: SSD1306 page-byte, LSB arriba.
-   - 4 páginas verticales (32 px / 8)
-   - 64 columnas
-   - Byte[p*64 + x] codifica los 8 píxeles verticales
-     de la columna x en la página p (bit 0 = arriba).</pre>
-  </section>
+    <!-- SECCIÓN ENVIAR -->
+    <section id="tab-send" class="content-panel">
+        <div class="send-card">
+            <div class="status-box">
+                <div class="preview-mini">
+                    <canvas id="sendPreview"></canvas>
+                </div>
+                <div class="info">
+                    <h2 id="sendInfoTitle">Listo para transmitir</h2>
+                    <p id="sendInfoMeta">0 frames • 64x32 px</p>
+                </div>
+            </div>
+
+            <div class="bridge-actions">
+                <button id="btnBridgeConnect" class="btn-sec">🔗 1. VINCULAR NACHIMBONG</button>
+                <button id="btnBridgeSend" class="btn-main glow">🚀 2. TRANSFERIR VIA APK</button>
+            </div>
+            
+            <div id="log" class="console-log">Esperando acción...</div>
+        </div>
+    </section>
+
 </main>
 
-<footer>
-  Nachimbong OLED Studio · Sin envío de datos a ningún servidor · Todo se procesa en tu navegador.
-</footer>
+<footer>SKZ V2 OLED STUDIO • NATIVE BRIDGE MODE</footer>
 
 <script src="https://cdn.jsdelivr.net/npm/gifuct-js@2.1.2/dist/gifuct-js.min.js"></script>
 <script src="app.js"></script>
-<script>
-  // Mini-detector: indica si estamos dentro del APK modificado
-  (function(){
-    const el = document.getElementById('bridgeStatus');
-    if(!el) return;
-    if(window.bridge && typeof window.bridge.blePairingStart === 'function'){
-      el.textContent = '✅ Modo APK Nativo detectado (window.bridge activo)';
-      el.className = 'status ok';
-    } else {
-      el.textContent = '⚠️ Modo navegador estándar (Web Bluetooth). Para mejor compatibilidad, usa el APK modificado.';
-      el.className = 'status err';
-    }
-  })();
-</script>
 </body>
 </html>

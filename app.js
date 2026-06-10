@@ -1,100 +1,185 @@
-// ---------- envío al dispositivo ----------
-$('#connectBtn').addEventListener('click', async ()=>{
-  const st = $('#bleStatus');
+// Nachimbong V2 OLED Studio - APK Bridge Version
+const UI = {
+    state: {
+        W: 64, H: 32,
+        pixels: new Uint8Array(64 * 32),
+        frames: [], // Array de Uint8Array (binario)
+        currentTool: 'pen'
+    },
+    $: id => document.getElementById(id),
+    log: msg => { UI.$('log').textContent = `> ${msg}`; }
+};
 
-  // PRIORIDAD 1: APK Modificado (Android Bridge detectado en el original)
-  if (window.bridge && typeof window.bridge.blePairingStart === 'function') {
-    try {
-      window.bridge.blePairingStart();
-      setStatus(st, 'Conectando via APK Nativo...', 'ok');
-      return;
-    } catch(e) { 
-      setStatus(st, 'Error Bridge: ' + e.message, 'err'); 
-    }
-  }
-
-  // PRIORIDAD 2: Web Bluetooth (Solo funciona en Chrome Desktop, no en el Lightstick directamente)
-  if(!navigator.bluetooth){ setStatus(st,'Este navegador no soporta Web Bluetooth.','err'); return; }
-  try {
-    setStatus(st,'Solicitando dispositivo BLE…');
-    const svc = $('#svcUuid').value.trim();
-    const dev = await navigator.bluetooth.requestDevice({
-      acceptAllDevices: true,
-      optionalServices: [svc]
-    });
-    setStatus(st,'Conectando a ' + (dev.name||dev.id) + '…');
-    const gatt = await dev.gatt.connect();
-    const service = await gatt.getPrimaryService(svc);
-    const chr = await service.getCharacteristic($('#chrUuid').value.trim());
-    state.bleDev = dev; state.bleChr = chr;
-    setStatus(st,'Conectado: ' + (dev.name||dev.id),'ok');
-    dev.addEventListener('gattserverdisconnected', ()=>{
-      state.bleChr = null;
-      setStatus(st,'Desconectado (se reconectará al enviar)','err');
-    });
-  } catch(e){ setStatus(st,'Error: '+e.message,'err'); }
+// --- INIT TABS ---
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.onclick = () => {
+        document.querySelectorAll('.tab-btn, .content-panel').forEach(el => el.classList.remove('active'));
+        btn.classList.add('active');
+        UI.$(`tab-${btn.dataset.tab}`).classList.add('active');
+    };
 });
 
-$('#sendBtn').addEventListener('click', async ()=>{
-  const st = $('#bleStatus');
-  if(!state.procFrames.length){ setStatus(st,'Nada que enviar.','err'); return; }
-  
-  const packed = state.procFrames.map(packFrame);
-  const hexFrames = packed.map(bytesToHex);
+// --- CANVAS EDITOR ---
+(function initEditor() {
+    const canvas = UI.$('drawCanvas');
+    const ctx = canvas.getContext('2d');
+    const ZOOM = 20; // Zoom grande para el celular
+    canvas.width = UI.state.W * ZOOM;
+    canvas.height = UI.state.H * ZOOM;
 
-  // PRIORIDAD 1: APK Modificado (El formato que espera el Lightstick V2)
-  if(window.bridge && typeof window.bridge.bleSendCmdList === 'function'){
-    try {
-      // El lightstick espera un JSON con la lista de comandos HEX
-      // Adaptamos el formato al esperado por el bridge oficial
-      const payload = JSON.stringify({
-        width: state.W,
-        height: state.H,
-        frames: hexFrames
-      });
-      window.bridge.bleSendCmdList(payload);
-      setStatus(st,'Enviado al Lightstick via APK ✓','ok');
-      return;
-    } catch(e) { 
-      setStatus(st,'Error Bridge: '+e.message,'err'); 
+    function render() {
+        ctx.fillStyle = '#000'; ctx.fillRect(0,0, canvas.width, canvas.height);
+        ctx.fillStyle = '#fff';
+        for(let i=0; i<UI.state.pixels.length; i++) {
+            if(UI.state.pixels[i]) {
+                const x = i % UI.state.W;
+                const y = Math.floor(i / UI.state.W);
+                ctx.fillRect(x*ZOOM, y*ZOOM, ZOOM, ZOOM);
+            }
+        }
+        // Grid
+        ctx.strokeStyle = '#1a222e'; ctx.lineWidth = 1;
+        for(let x=0; x<=UI.state.W; x++) { ctx.beginPath(); ctx.moveTo(x*ZOOM,0); ctx.lineTo(x*ZOOM, canvas.height); ctx.stroke(); }
+        for(let y=0; y<=UI.state.H; y++) { ctx.beginPath(); ctx.moveTo(0, y*ZOOM); ctx.lineTo(canvas.width, y*ZOOM); ctx.stroke(); }
     }
-  }
 
-  // PRIORIDAD 2: Web Bluetooth Fallback
-  if(!state.bleDev){ setStatus(st,'Conecta primero o usa el APK modificado.','err'); return; }
-  const chunk = parseInt($('#chunkSize').value)||20;
-  let total = 0; packed.forEach(p=>total+=p.length);
-  const buf = new Uint8Array(total); let off=0;
-  for(const p of packed){ buf.set(p,off); off+=p.length; }
-  
-  try {
-    if(!state.bleDev.gatt.connected){
-      setStatus(st,'Reconectando…');
-      const gatt = await state.bleDev.gatt.connect();
-      const svc = $('#svcUuid').value.trim();
-      const service = await gatt.getPrimaryService(svc);
-      state.bleChr = await service.getCharacteristic($('#chrUuid').value.trim());
+    function getPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const ev = e.touches ? e.touches[0] : e;
+        const x = Math.floor(((ev.clientX - rect.left) / rect.width) * UI.state.W);
+        const y = Math.floor(((ev.clientY - rect.top) / rect.height) * UI.state.H);
+        return {x, y};
     }
-    
-    for(let i=0; i<buf.length; i+=chunk){
-      const slice = buf.slice(i, Math.min(i+chunk, buf.length));
-      if(state.bleChr.writeValueWithoutResponse) await state.bleChr.writeValueWithoutResponse(slice);
-      else await state.bleChr.writeValue(slice);
-      setStatus(st, `Enviando… ${Math.round((i+slice.length)*100/buf.length)}%`);
-    }
-    setStatus(st,'Transferencia completada ✓','ok');
-  } catch(e){ setStatus(st,'Error al enviar: '+e.message,'err'); }
-});
 
-// ---------- arrancar con un placeholder ----------
-(function bootstrap(){
-  const W=state.W,H=state.H;
-  const c=document.createElement('canvas'); c.width=W; c.height=H;
-  const cx=c.getContext('2d');
-  cx.fillStyle='#000'; cx.fillRect(0,0,W,H);
-  cx.fillStyle='#fff'; cx.font='bold 14px sans-serif'; cx.textAlign='center';
-  cx.fillText('STRAY KIDS', W/2, H/2-2);
-  cx.fillText('V2 OLED', W/2, H/2+12);
-  state.rawFrames = [cx.getImageData(0,0,W,H)];
-  reprocess();
+    function draw(e) {
+        if(!isDrawing) return;
+        const {x, y} = getPos(e);
+        if(x<0 || x>=UI.state.W || y<0 || y>=UI.state.H) return;
+        UI.$('cursorPos').textContent = `${x},${y}`;
+        UI.state.pixels[y * UI.state.W + x] = UI.state.currentTool === 'pen' ? 1 : 0;
+        render();
+    }
+
+    let isDrawing = false;
+    canvas.onmousedown = canvas.ontouchstart = (e) => { isDrawing = true; draw(e); if(e.type === 'touchstart') e.preventDefault(); };
+    window.onmousemove = window.ontouchmove = (e) => { draw(e); };
+    window.onmouseup = window.ontouchend = () => { isDrawing = false; };
+
+    UI.$('toolPen').onclick = () => { UI.state.currentTool = 'pen'; updateTools(); };
+    UI.$('toolErase').onclick = () => { UI.state.currentTool = 'erase'; updateTools(); };
+    function updateTools() { UI.$('toolPen').className = UI.state.currentTool==='pen'?'tool active':'tool'; UI.$('toolErase').className = UI.state.currentTool==='erase'?'tool active':'tool'; }
+
+    UI.$('toolClear').onclick = () => { UI.state.pixels.fill(0); render(); };
+    UI.$('toolInvert').onclick = () => { for(let i=0; i<UI.state.pixels.length; i++) UI.state.pixels[i] = UI.state.pixels[i]?0:1; render(); };
+    UI.$('toolFill').onclick = () => { UI.state.pixels.fill(1); render(); };
+
+    // --- TEXT RENDER ---
+    UI.$('btnRenderText').onclick = () => {
+        const txt = UI.$('drawText').value;
+        const tmp = document.createElement('canvas'); tmp.width=UI.state.W; tmp.height=UI.state.H;
+        const tctx = tmp.getContext('2d');
+        tctx.fillStyle='#000'; tctx.fillRect(0,0,64,32);
+        tctx.fillStyle='#fff'; tctx.font='bold 12px monospace'; tctx.textAlign='center';
+        tctx.fillText(txt, 32, 20);
+        const img = tctx.getImageData(0,0,64,32);
+        for(let i=0; i<UI.state.pixels.length; i++) UI.state.pixels[i] = img.data[i*4] > 127 ? 1 : 0;
+        render();
+    };
+
+    render();
 })();
+
+// --- FRAME MANAGEMENT ---
+UI.$('btnSaveFrame').onclick = () => {
+    UI.state.frames.push(new Uint8Array(UI.state.pixels));
+    updateFrames();
+};
+UI.$('btnClearFrames').onclick = () => { UI.state.frames = []; updateFrames(); };
+
+function updateFrames() {
+    UI.$('frameCount').textContent = `${UI.state.frames.length} frames guardados`;
+    const thumbs = UI.$('frameThumbs'); thumbs.innerHTML = '';
+    UI.state.frames.forEach(f => {
+        const can = document.createElement('canvas'); can.width=64; can.height=32;
+        const c = can.getContext('2d');
+        const img = c.createImageData(64,32);
+        for(let i=0; i<64*32; i++){
+            const v = f[i]?255:0;
+            img.data[i*4]=img.data[i*4+1]=img.data[i*4+2]=v; img.data[i*4+3]=255;
+        }
+        c.putImageData(img,0,0);
+        thumbs.appendChild(can);
+    });
+}
+
+// --- PROTOCOLO NACHIMBONG (PACKING) ---
+function packFrame(pixels) {
+    const bytes = new Uint8Array(256); // 64 cols * 4 pages
+    for (let page = 0; page < 4; page++) {
+        for (let x = 0; x < 64; x++) {
+            let byte = 0;
+            for (let bit = 0; bit < 8; bit++) {
+                const y = page * 8 + bit;
+                if (pixels[y * 64 + x]) byte |= (1 << bit);
+            }
+            bytes[page * 64 + x] = byte;
+        }
+    }
+    return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// --- BRIDGE ACTIONS ---
+UI.$('btnPrepareDraw').onclick = () => {
+    // Si no hay frames, usamos el actual repetido 16 veces (típico de SKZ V2)
+    const activeFrames = UI.state.frames.length > 0 ? UI.state.frames : Array(16).fill(UI.state.pixels);
+    UI.$('sendInfoMeta').textContent = `${activeFrames.length} frames • 64x32 px`;
+    
+    // Preview en pestaña enviar
+    const can = UI.$('sendPreview'); can.width=64; can.height=32;
+    const c = can.getContext('2d');
+    const f = activeFrames[0];
+    const img = c.createImageData(64,32);
+    for(let i=0; i<64*32; i++){
+        const v = f[i]?255:0;
+        img.data[i*4]=img.data[i*4+1]=img.data[i*4+2]=v; img.data[i*4+3]=255;
+    }
+    c.putImageData(img,0,0);
+
+    // Guardar para envío
+    window.currentPayload = {
+        width: 64, height: 32,
+        frames: activeFrames.map(f => packFrame(f))
+    };
+
+    // Cambiar de pestaña
+    document.querySelector('[data-tab="send"]').click();
+    UI.log("Datos listos para enviar");
+};
+
+UI.$('btnBridgeConnect').onclick = () => {
+    if(window.bridge && window.bridge.blePairingStart) {
+        UI.log("Iniciando vinculación nativa...");
+        window.bridge.blePairingStart();
+    } else {
+        UI.log("ERROR: Bridge no detectado.");
+    }
+};
+
+UI.$('btnBridgeSend').onclick = () => {
+    if(!window.currentPayload) { UI.log("Error: Primero prepara el dibujo"); return; }
+    if(window.bridge && window.bridge.bleSendCmdList) {
+        UI.log("Enviando paquetes al bridge...");
+        window.bridge.bleSendCmdList(JSON.stringify(window.currentPayload));
+        UI.log("¡TRANSFERENCIA COMPLETADA!");
+    } else {
+        UI.log("ERROR: window.bridge.bleSendCmdList no disponible");
+    }
+};
+
+// Check Bridge al cargar
+window.onload = () => {
+    if(window.bridge) {
+        UI.$('bridgeIndicator').textContent = "✅ APK BRIDGE CONECTADO";
+        UI.$('bridgeIndicator').className = "bridge-badge ok";
+    }
+};
