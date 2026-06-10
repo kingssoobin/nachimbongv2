@@ -1,538 +1,126 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>Nachimbong OLED Studio (Custom Draw)</title>
-<style>
-  :root { --bg:#000; --fg:#fff; --muted:#9aa0a6; --ok:#00c853; --warn:#ff9100; --bad:#ff5252; --panel:#101010; --panel2:#151515; --stroke:#2a2a2a; }
-  html,body{height:100%;}
-  body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;overflow-x:hidden;}
-  .topbar{position:sticky;top:0;z-index:10;background:#0b0b0b;border-bottom:1px solid var(--stroke);padding:12px 14px;}
-  .title{font-weight:800;letter-spacing:.3px;}
-  .sub{color:var(--muted);font-size:12px;margin-top:2px;}
-
-  .wrap{padding:12px;max-width:760px;margin:0 auto;}
-  .status{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--stroke);border-left:4px solid var(--warn);border-radius:10px;padding:10px 12px;margin-bottom:10px;}
-  .status.ok{border-left-color:var(--ok);} 
-  .status.bad{border-left-color:var(--bad);} 
-  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
-  .pill{display:inline-flex;align-items:center;gap:8px;font-size:12px;background:#0d0d0d;border:1px solid var(--stroke);border-radius:999px;padding:6px 10px;color:var(--muted);}
-  .pill b{color:var(--fg);font-weight:700;}
-
-  .canvasCard{background:linear-gradient(180deg,var(--panel),#0b0b0b);border:1px solid var(--stroke);border-radius:12px;padding:12px;}
-  .canvasTop{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:10px;}
-  .hint{font-size:12px;color:var(--muted);}
-  canvas{background:#000;border:3px solid #1f1f1f;border-radius:10px;touch-action:none;image-rendering:pixelated;}
-  .controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px;}
-  button{appearance:none;border:1px solid var(--stroke);background:#141414;color:var(--fg);padding:14px 12px;border-radius:10px;font-weight:800;letter-spacing:.2px;}
-  button:active{filter:brightness(1.15);}
-  button.primary{background:#0d47a1;border-color:#0d47a1;}
-  button.danger{background:#b71c1c;border-color:#b71c1c;}
-  button.secondary{background:#1b1b1b;}
-
-  .progress{height:10px;background:#0a0a0a;border:1px solid var(--stroke);border-radius:999px;overflow:hidden;}
-  .bar{height:100%;width:0%;background:linear-gradient(90deg,#00c853,#64dd17);transition:width .2s ease;}
-
-  .log{margin-top:10px;background:#060606;border:1px solid var(--stroke);border-radius:10px;padding:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;color:#c7c7c7;max-height:140px;overflow:auto;}
-  .logLine{white-space:pre-wrap;word-break:break-word;}
-
-  .small{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.35;}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nachimbong OLED Fix</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #111; color: #eee; }
+        canvas { border: 2px solid #ed1c24; background: #000; touch-action: none; width: 256px; height: 256px; image-rendering: pixelated; }
+        .controls { margin: 20px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+        button { padding: 15px 30px; font-weight: bold; border-radius: 25px; border: none; cursor: pointer; }
+        #sendBtn { background: #ed1c24; color: white; }
+        #clearBtn { background: #444; color: white; }
+        #status { color: #888; font-size: 0.9em; margin-top: 10px; }
+    </style>
 </head>
 <body>
-  <header class="topbar">
-    <div class="title">Nachimbong OLED Studio</div>
-    <div class="sub">Dibuja y envía desde dentro del APK (bridge nativo)</div>
-  </header>
 
-  <div class="wrap">
-    <div id="status" class="status">
-      <div class="row" style="justify-content:space-between;">
-        <div>
-          <div style="font-weight:800;" id="statusTitle">Buscando emparejamiento…</div>
-          <div class="hint" id="statusHint">La app oficial usa <code>blePairingStart</code> y luego envía por <code>bleSendCmdList</code> con ACK.</div>
-        </div>
-        <div class="pill"><b id="mode">—</b><span id="modeHint">modo</span></div>
-      </div>
-      <div style="margin-top:10px;" class="progress"><div id="bar" class="bar"></div></div>
-      <div class="small" id="progressText">0%</div>
+    <h3>Nachimbong OLED Studio</h3>
+    
+    <canvas id="canvas" width="128" height="128"></canvas>
+
+    <div class="controls">
+        <button id="sendBtn">ENVIAR AL NACHIMBONG</button>
+        <button id="clearBtn">LIMPIAR</button>
+        <div id="status">Esperando conexión técnica...</div>
     </div>
 
-    <div class="canvasCard">
-      <div class="canvasTop">
-        <div>
-          <div style="font-weight:800;">Lienzo 128×128</div>
-          <div class="hint">Toca y arrastra para dibujar. (Se guarda localmente y se restaura al “reiniciar”.)</div>
-        </div>
-        <div class="row">
-          <span class="pill"><b>Frames</b> 16 (estático)</span>
-          <span class="pill"><b>Partes</b> 16 × 128B</span>
-        </div>
-      </div>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const status = document.getElementById('status');
+        let isDrawing = false;
 
-      <div style="display:flex;justify-content:center;">
-        <canvas id="cv" width="128" height="128"></canvas>
-      </div>
-
-      <div class="controls">
-        <button id="clear" class="danger">Limpiar</button>
-        <button id="invert" class="secondary">Invertir</button>
-        <button id="undo" class="secondary">Deshacer</button>
-        <button id="send" class="primary">Enviar al Nachimbong</button>
-      </div>
-
-      <div class="log" id="log"></div>
-      <div class="small">
-        Nota: el envío está implementado igual que en el JS minificado: comandos <code>810F</code> (16 partes) y avance por ACK en <code>NativeInterface.bleGetUpdateStatus</code>. Al terminar, hace <em>disconnect</em> y recarga (comportamiento tipo “reinicio”).
-      </div>
-    </div>
-  </div>
-
-<script>
-(() => {
-  const STORAGE_KEY = 'custom_oled_bitmap_v1';
-  const STORAGE_INV = 'custom_oled_invert_v1';
-
-  const el = (id) => document.getElementById(id);
-  const cv = el('cv');
-  const ctx = cv.getContext('2d', { willReadFrequently: true });
-  const statusEl = el('status');
-  const statusTitle = el('statusTitle');
-  const statusHint = el('statusHint');
-  const modeEl = el('mode');
-  const modeHint = el('modeHint');
-  const bar = el('bar');
-  const progressText = el('progressText');
-  const logEl = el('log');
-
-  const state = {
-    useNative: false,
-    connected: false,
-    sending: false,
-    invert: false,
-
-    // envío estilo app oficial
-    totalImages: 16,
-    curImage: 0,
-    curPart: 0,
-    partsHex: null, // [16] strings (cada una 256 hex chars)
-    retryTimer: null,
-    lastCmd: null,
-  };
-
-  function log(msg) {
-    const line = document.createElement('div');
-    line.className = 'logLine';
-    line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
-    logEl.prepend(line);
-    console.log(msg);
-  }
-
-  function setProgress(p) {
-    const clamped = Math.max(0, Math.min(100, p));
-    bar.style.width = clamped + '%';
-    progressText.textContent = clamped.toFixed(0) + '%';
-  }
-
-  function setStatus(kind, title, hint) {
-    statusEl.classList.remove('ok','bad');
-    if (kind === 'ok') statusEl.classList.add('ok');
-    if (kind === 'bad') statusEl.classList.add('bad');
-    statusTitle.textContent = title;
-    statusHint.textContent = hint;
-  }
-
-  function bytesToHex(bytes) {
-    let out = '';
-    for (let i = 0; i < bytes.length; i++) {
-      const h = bytes[i].toString(16).padStart(2,'0');
-      out += h;
-    }
-    return out;
-  }
-
-  function hexToBytes(hex) {
-    const clean = (hex || '').trim();
-    const out = new Uint8Array(clean.length / 2);
-    for (let i = 0; i < out.length; i++) {
-      out[i] = parseInt(clean.substr(i*2,2),16) || 0;
-    }
-    return out;
-  }
-
-  // Dibujo: guardamos/restauramos como PNG base64 (simple y robusto)
-  function saveCanvas() {
-    try {
-      localStorage.setItem(STORAGE_KEY, cv.toDataURL('image/png'));
-      localStorage.setItem(STORAGE_INV, state.invert ? '1' : '0');
-      log('Guardado local OK');
-    } catch (e) {
-      log('No se pudo guardar localStorage: ' + e.message);
-    }
-  }
-
-  async function restoreCanvas() {
-    try {
-      const inv = localStorage.getItem(STORAGE_INV);
-      state.invert = inv === '1';
-      const dataUrl = localStorage.getItem(STORAGE_KEY);
-      if (!dataUrl) return;
-      const img = new Image();
-      await new Promise((res, rej) => {
-        img.onload = res;
-        img.onerror = rej;
-        img.src = dataUrl;
-      });
-      ctx.clearRect(0,0,128,128);
-      ctx.drawImage(img, 0, 0, 128, 128);
-      // si estaba invertido, lo aplicamos visualmente para que coincida
-      if (state.invert) invertCanvasPixels();
-      log('Restaurado desde localStorage');
-    } catch (e) {
-      log('No se pudo restaurar: ' + e.message);
-    }
-  }
-
-  function clearCanvas() {
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0,0,128,128);
-  }
-
-  // Historial simple (1 nivel) para no pesar en móvil
-  let lastImageData = null;
-  function snapshot() {
-    try { lastImageData = ctx.getImageData(0,0,128,128); } catch (_) {}
-  }
-  function undo() {
-    if (!lastImageData) return;
-    try { ctx.putImageData(lastImageData, 0, 0); } catch (_) {}
-  }
-
-  function invertCanvasPixels() {
-    const img = ctx.getImageData(0,0,128,128);
-    const d = img.data;
-    for (let i=0;i<d.length;i+=4) {
-      d[i] = 255 - d[i];
-      d[i+1] = 255 - d[i+1];
-      d[i+2] = 255 - d[i+2];
-    }
-    ctx.putImageData(img,0,0);
-  }
-
-  // Empaquetado a 2048 bytes (128x128 1bpp) en row-major, MSB a la izquierda
-  function canvasTo2048BytesRowMajorMSB() {
-    const img = ctx.getImageData(0,0,128,128);
-    const d = img.data;
-    const out = new Uint8Array(2048);
-
-    for (let y=0; y<128; y++) {
-      for (let x=0; x<128; x++) {
-        const idx = (y*128 + x) * 4;
-        const v = d[idx]; // R (ya es B/N)
-        const on = v > 127;
-
-        const byteIndex = y*16 + (x >> 3);
-        const bit = 7 - (x & 7);
-        if (on) out[byteIndex] |= (1 << bit);
-      }
-    }
-
-    return out;
-  }
-
-  function buildPartsHexFromCanvas() {
-    const bytes = canvasTo2048BytesRowMajorMSB();
-    const parts = [];
-    for (let p=0; p<16; p++) {
-      const chunk = bytes.slice(p*128, (p+1)*128);
-      parts.push(bytesToHex(chunk).toUpperCase());
-    }
-    return parts;
-  }
-
-  // Bridge nativo: mismo contrato que la app oficial
-  function detectNative() {
-    state.useNative = !!(window.bridge && typeof window.bridge.bleSendCmdList === 'function' && typeof window.bridge.blePairingStart === 'function');
-    modeEl.textContent = state.useNative ? 'APK Nativo' : 'Sin Bridge';
-    modeHint.textContent = state.useNative ? 'bridge' : 'no compatible';
-
-    if (!state.useNative) {
-      setStatus('bad', 'Bridge no disponible', 'Este HTML debe correr dentro del APK (WebView con window.bridge).');
-      return;
-    }
-
-    setStatus('','Buscando emparejamiento…','Iniciando blePairingStart automáticamente (como la app original).');
-    try {
-      // Igual que iC0(""), iniciamos búsqueda
-      window.bridge.blePairingStart('');
-      log('blePairingStart("" ) enviado');
-    } catch (e) {
-      log('Error blePairingStart: ' + e.message);
-    }
-  }
-
-  function F7(partIndex) {
-    // En el minificado: r[3]=F7(t). Normalmente es 2 hex digits.
-    return partIndex.toString(16).toUpperCase().padStart(2,'0');
-  }
-
-  function build810FCmd(totalMinus1, curImage, partIndex, dataHex256) {
-    const a = totalMinus1.toString(16).toUpperCase().padStart(4,'0');
-    const b = curImage.toString(16).toUpperCase().padStart(4,'0');
-    const c = F7(partIndex);
-    return '810F' + a + b + c + dataHex256 + ',-';
-  }
-
-  function nativeSend(cmdListString) {
-    // pt(e) en minificado: bleSendCmdList(e)
-    try {
-      window.bridge.bleSendCmdList(cmdListString);
-      return true;
-    } catch (e) {
-      log('Error bleSendCmdList: ' + e.message);
-      return false;
-    }
-  }
-
-  function stopRetry() {
-    if (state.retryTimer) {
-      clearInterval(state.retryTimer);
-      state.retryTimer = null;
-    }
-  }
-
-  function startRetry(resendFn) {
-    stopRetry();
-    state.retryTimer = setInterval(resendFn, 1000);
-  }
-
-  function totalPackets() {
-    return state.totalImages * 16;
-  }
-
-  function sentPacketsCount() {
-    return state.curImage * 16 + state.curPart;
-  }
-
-  function updateProgressUI() {
-    const done = sentPacketsCount();
-    const pct = (done / totalPackets()) * 100;
-    setProgress(pct);
-  }
-
-  function sendCurrentPacket() {
-    if (!state.partsHex) return;
-
-    const totalMinus1 = state.totalImages - 1; // como el minificado: C.length-1
-    const data = state.partsHex[state.curPart];
-    const cmd = build810FCmd(totalMinus1, state.curImage, state.curPart, data);
-
-    state.lastCmd = cmd;
-    nativeSend(cmd);
-
-    log(`TX 810F img=${state.curImage}/${state.totalImages-1} part=${state.curPart}/15`);
-  }
-
-  function advanceAndSendNext() {
-    // avanzar part/img
-    state.curPart += 1;
-    if (state.curPart > 15) {
-      state.curPart = 0;
-      state.curImage += 1;
-    }
-
-    if (state.curImage >= state.totalImages) {
-      // terminado
-      stopRetry();
-      state.sending = false;
-      setProgress(100);
-      setStatus('ok', 'Envío completado', 'Se reiniciará como la app original.');
-      log('✅ Transfer DONE');
-
-      // “Comportamiento tipo reinicio” + persistencia
-      saveCanvas();
-
-      try {
-        if (window.bridge && typeof window.bridge.bleDisconnect === 'function') {
-          window.bridge.bleDisconnect('');
-          log('bleDisconnect("" ) enviado');
+        // Recuperar imagen guardada al estilo "reinicio" original
+        const savedImg = localStorage.getItem('last_oled_img');
+        if (savedImg) {
+            const img = new Image();
+            img.onload = () => ctx.drawImage(img, 0, 0);
+            img.src = savedImg;
         }
-      } catch (e) {
-        log('Error bleDisconnect: ' + e.message);
-      }
 
-      setTimeout(() => {
-        location.reload();
-      }, 1200);
+        // Dibujo básico
+        canvas.addEventListener('pointerdown', () => isDrawing = true);
+        window.addEventListener('pointerup', () => {
+            isDrawing = false;
+            localStorage.setItem('last_oled_img', canvas.toDataURL());
+        });
+        canvas.addEventListener('pointermove', draw);
 
-      return;
-    }
+        function draw(e) {
+            if (!isDrawing) return;
+            ctx.fillStyle = "white";
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * (128 / rect.width);
+            const y = (e.clientY - rect.top) * (128 / rect.height);
+            ctx.beginPath();
+            ctx.arc(x, y, 4, 0, Math.PI * 2);
+            ctx.fill();
+        }
 
-    updateProgressUI();
+        document.getElementById('clearBtn').onclick = () => {
+            ctx.clearRect(0, 0, 128, 128);
+            localStorage.removeItem('last_oled_img');
+        };
 
-    // enviar siguiente y reiniciar retry
-    sendCurrentPacket();
-    startRetry(() => {
-      if (!state.sending) return;
-      log('Retry TX (sin ACK)');
-      sendCurrentPacket();
-    });
-  }
+        // Lógica de envío "Original" detectada en el minificado
+        async function transferOled() {
+            status.innerText = "Preparando imagen...";
+            
+            // Convertir a 1-bit monochromo (SSD1306 Horizontal / Vertical Pack)
+            // Para evitar los "16 mini corazones", recorremos de forma que rellene la pantalla completa
+            const imgData = ctx.getImageData(0, 0, 128, 128).data;
+            let oledBytes = new Uint8Array(2048); 
+            
+            for (let y = 0; y < 128; y++) {
+                for (let x = 0; x < 128; x++) {
+                    const idx = (y * 128 + x) * 4;
+                    if (imgData[idx] > 128) { // Si el píxel es blanco
+                        const byteIdx = (Math.floor(y / 8) * 128) + x;
+                        oledBytes[byteIdx] |= (1 << (y % 8));
+                    }
+                }
+            }
 
-  function startTransfer() {
-    if (!state.useNative) {
-      setStatus('bad', 'Sin bridge', 'Abre esto dentro del APK.');
-      return;
-    }
+            // Enviar en bloques de 128 bytes (16 partes)
+            // Comando original detectado: 810F...
+            status.innerText = "Enviando... No cierres la app";
 
-    // reconstruir partes desde el canvas
-    state.partsHex = buildPartsHexFromCanvas();
+            for (let part = 0; part < 16; part++) {
+                const chunk = oledBytes.slice(part * 128, (part + 1) * 128);
+                const hexData = Array.from(chunk).map(b => b.toString(16).padStart(2, '0')).join('');
+                
+                // Formato de comando: 810F + totalImgs(4) + curImg(4) + part(2) + data + ,-
+                const cmd = `810F00000000${part.toString(16).padStart(2, '0')}${hexData},-`;
+                
+                if (window.bridge) {
+                    window.bridge.bleSendCmdList(cmd);
+                } else if (window.webkit && window.webkit.messageHandlers) {
+                    window.webkit.messageHandlers.bleSendCmdList.postMessage(cmd);
+                }
 
-    // reset estado
-    state.curImage = 0;
-    state.curPart = 0;
-    state.sending = true;
-    setProgress(0);
-    setStatus('', 'Enviando…', 'Esperando ACK entre paquetes (como la app original).');
+                status.innerText = `Enviando parte ${part+1} de 16...`;
+                // Delay para no saturar el bridge nativo
+                await new Promise(r => setTimeout(r, 150));
+            }
 
-    // guardar dibujo antes de enviar
-    saveCanvas();
+            status.innerText = "¡Listo! Reiniciando...";
+            await new Promise(r => setTimeout(r, 1000));
+            
+            // Simular el reinicio de la app oficial
+            if (window.bridge) window.bridge.bleDisconnect("");
+            location.reload();
+        }
 
-    // enviar primer paquete y empezar retry; el avance real ocurre en ACK
-    sendCurrentPacket();
-    startRetry(() => {
-      if (!state.sending) return;
-      log('Retry TX (sin ACK)');
-      sendCurrentPacket();
-    });
-  }
+        document.getElementById('sendBtn').onclick = transferOled;
 
-  // Callbacks esperados por el APK
-  window.NativeInterface = {
-    bleGetUpdateStatus: (v) => {
-      // En minificado: cualquier callback hace avanzar y limpia interval
-      log('ACK bleGetUpdateStatus: ' + (typeof v === 'string' ? v : JSON.stringify(v)));
-      state.connected = true;
-      setStatus('ok', 'Conectado', 'Listo para enviar.');
-
-      if (state.sending) {
-        stopRetry();
-        // avanzar al siguiente paquete cuando llega ACK
-        advanceAndSendNext();
-      }
-    },
-    bleDisconnected: () => {
-      log('EVENT bleDisconnected');
-      state.connected = false;
-      if (state.sending) {
-        state.sending = false;
-        stopRetry();
-      }
-      setStatus('bad', 'Desconectado', 'Volviendo a buscar emparejamiento…');
-      try { window.bridge.blePairingStart(''); } catch (_) {}
-    },
-    gotoPage: (v) => {
-      // no usamos router aquí, pero algunos APK lo llaman
-      log('gotoPage: ' + v);
-    }
-  };
-
-  // Dibujo touch/mouse
-  function getXY(evt) {
-    const r = cv.getBoundingClientRect();
-    const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
-    const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
-    const x = Math.floor((clientX - r.left) * (cv.width / r.width));
-    const y = Math.floor((clientY - r.top) * (cv.height / r.height));
-    return { x: Math.max(0, Math.min(127, x)), y: Math.max(0, Math.min(127, y)) };
-  }
-
-  let drawing = false;
-  function drawAt(x,y) {
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(x, y, 1, 1);
-  }
-
-  cv.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    snapshot();
-    drawing = true;
-    const {x,y} = getXY(e);
-    drawAt(x,y);
-  }, { passive: false });
-
-  cv.addEventListener('touchmove', (e) => {
-    e.preventDefault();
-    if (!drawing) return;
-    const {x,y} = getXY(e);
-    drawAt(x,y);
-  }, { passive: false });
-
-  cv.addEventListener('touchend', (e) => {
-    e.preventDefault();
-    drawing = false;
-  }, { passive: false });
-
-  cv.addEventListener('mousedown', (e) => {
-    snapshot();
-    drawing = true;
-    const {x,y} = getXY(e);
-    drawAt(x,y);
-  });
-
-  cv.addEventListener('mousemove', (e) => {
-    if (!drawing) return;
-    const {x,y} = getXY(e);
-    drawAt(x,y);
-  });
-
-  window.addEventListener('mouseup', () => { drawing = false; });
-
-  // UI
-  el('clear').addEventListener('click', () => {
-    snapshot();
-    clearCanvas();
-    saveCanvas();
-  });
-
-  el('undo').addEventListener('click', () => {
-    undo();
-    saveCanvas();
-  });
-
-  el('invert').addEventListener('click', () => {
-    snapshot();
-    invertCanvasPixels();
-    state.invert = !state.invert;
-    saveCanvas();
-  });
-
-  el('send').addEventListener('click', () => {
-    if (state.sending) {
-      log('Ya está enviando…');
-      return;
-    }
-    startTransfer();
-  });
-
-  // init
-  function fitCanvasCSS() {
-    // Ajuste visual: ocupa ancho sin deformar (pixelated)
-    const max = Math.min(window.innerWidth - 60, 420);
-    cv.style.width = max + 'px';
-    cv.style.height = max + 'px';
-  }
-
-  window.addEventListener('resize', fitCanvasCSS);
-
-  (async function init() {
-    fitCanvasCSS();
-    clearCanvas();
-    await restoreCanvas();
-    detectNative();
-  })();
-})();
-</script>
+        // Auto-conectar al cargar (como la app oficial)
+        window.onload = () => {
+            setTimeout(() => {
+                if (window.bridge) window.bridge.blePairingStart("");
+            }, 1000);
+        };
+    </script>
 </body>
 </html>
