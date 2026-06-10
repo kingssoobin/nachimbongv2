@@ -182,4 +182,4 @@ window.onload = () => {
         UI.$('bridgeIndicator').textContent = "✅ APK BRIDGE CONECTADO";
         UI.$('bridgeIndicator').className = "bridge-badge ok";
     }
-};
+}; 
