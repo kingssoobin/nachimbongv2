@@ -282,7 +282,7 @@ function onSendDesign(){
     sendMyDesign(name);
 }
 
-/* ====== canvas → enviar (imagen estática) ====== */
+// Reemplaza tu transferOled por esta versión
 async function transferOled(){
     statusEl.innerText = "Preparando imagen...";
     const imgData = ctx.getImageData(0,0,128,128).data;
@@ -296,21 +296,33 @@ async function transferOled(){
             }
         }
     }
+
+    // Usamos totalFrames = 1 y frameIndex = 0 (ambos en hex con padding)
+    const totalHex = (1).toString(16).padStart(4,'0').toUpperCase(); // "0001"
+    const frameHex = (0).toString(16).padStart(4,'0').toUpperCase(); // "0000"
+
     for(let part=0; part<16; part++){
         const chunk = oledBytes.slice(part*128,(part+1)*128);
         const hexData = Array.from(chunk).map(b=>b.toString(16).padStart(2,'0')).join('');
-        const cmd = `810F00000000${part.toString(16).padStart(2,'0')}${hexData},-`;
+        const partHex = part.toString(16).padStart(2,'0').toUpperCase();
+        // Encabezado: 810F + totalHex(4) + frameHex(4) + partHex(2) + payload
+        const cmd = `810F${totalHex}${frameHex}${partHex}${hexData},-`;
         try {
             if(window.bridge) window.bridge.bleSendCmdList(cmd);
             else if(window.webkit?.messageHandlers?.bleSendCmdList) window.webkit.messageHandlers.bleSendCmdList.postMessage(cmd);
             statusEl.innerText = `Enviando: ${Math.round(((part+1)/16)*100)}%`;
             await new Promise(r=>setTimeout(r,150));
         } catch(e){
-            statusEl.innerText = "⚠️ Error en parte " + (part+1);
+            statusEl.innerText = "⚠️ Error en parte " + (part+1) + ": " + (e.message || e);
             return;
         }
     }
-    try{ if(window.bridge) window.bridge.bleSendCmdList("810E01,-"); else if(window.webkit?.messageHandlers?.bleSendCmdList) window.webkit.messageHandlers.bleSendCmdList.postMessage("810E01,-"); }catch(e){}
+
+    // comando play al final
+    try{
+        if(window.bridge) window.bridge.bleSendCmdList("810E01,-");
+        else if(window.webkit?.messageHandlers?.bleSendCmdList) window.webkit.messageHandlers.bleSendCmdList.postMessage("810E01,-");
+    }catch(e){}
     statusEl.innerText = "✅ ¡Enviado correctamente!";
 }
 
