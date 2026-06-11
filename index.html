@@ -1,57 +1,69 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-    <title>Nachimbong OLED Studio — Envío compatible</title>
-    <style>
-        *{box-sizing:border-box}
-        body{font-family:system-ui,Segoe UI,Roboto,-apple-system;background:#0b0b0b;color:#eee;padding:12px;display:flex;flex-direction:column;align-items:center;gap:10px}
-        .panel{background:#111;border:1px solid #222;border-radius:10px;padding:10px;width:100%;max-width:420px}
-        button{padding:10px 12px;border-radius:10px;border:none;background:#ed1c24;color:#fff;cursor:pointer}
-        select,input,textarea{width:100%;padding:8px;border-radius:8px;border:1px solid #333;background:#000;color:#ddd}
-        #canvas{image-rendering:pixelated;border:2px solid #ed1c24;background:#000;width:256px;height:256px}
-        .muted{color:#999;font-size:0.9em}
-        .row{display:flex;gap:8px}
-        .row > *{flex:1}
-        #status{min-height:26px;color:#bdbdbd;font-size:0.95em}
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Nachimbong OLED Studio — Wolfchan</title>
+  <style>
+    *{box-sizing:border-box}
+    body{font-family:system-ui,Segoe UI,Roboto,-apple-system;background:#0b0b0b;color:#eee;padding:12px;display:flex;flex-direction:column;align-items:center;gap:10px}
+    .panel{background:#111;border:1px solid #222;border-radius:10px;padding:12px;width:100%;max-width:720px}
+    #canvas{image-rendering:pixelated;border:2px solid #ed1c24;background:#000;width:256px;height:256px}
+    .row{display:flex;gap:8px}
+    .row>button{flex:1;padding:10px;border-radius:10px;border:none;cursor:pointer}
+    select,input,textarea,button{font-family:inherit}
+    .muted{color:#9aa}
+    #log{height:160px}
+    button.primary{background:#ed1c24;color:#fff}
+    button.ghost{background:#262626;color:#ccc}
+  </style>
 </head>
 <body>
-  <h3>Nachimbong OLED Studio — Envío foto custom</h3>
+  <h2>Nachimbong OLED Studio — Wolfchan</h2>
 
   <canvas id="canvas" width="128" height="128"></canvas>
 
   <div class="panel">
-    <div style="margin-bottom:8px" class="muted">Diseño cargado: <strong>wolfchan_mexa</strong></div>
+    <div class="muted">Conexión</div>
+    <div class="row" style="margin-top:8px">
+      <button id="connectBtn" class="primary">🔌 Conectar / Emparejar</button>
+      <button id="disconnectBtn" class="ghost">⛔ Desconectar</button>
+    </div>
 
-    <label class="muted">Modo de envío</label>
-    <select id="sendMode">
-      <option value="normal">Normal (total=frames, frame=index, parts 0→15)</option>
-      <option value="reverse">Reverse (partes 15→0)</option>
-      <option value="swapHeader">SwapHeader (intercambia total<->frame)</option>
-      <option value="bitFlip">BitFlip (invierte bits dentro de cada byte)</option>
-      <option value="autoTry">Auto-Try (prueba Normal → Reverse → SwapHeader)</option>
+    <div style="margin-top:12px" class="muted">Modo de envío</div>
+    <select id="sendMode" style="margin-top:6px">
+      <option value="normal">normal (total=frames, frame=index, parts 0→15)</option>
+      <option value="reverse">reverse (partes 15→0)</option>
+      <option value="swapHeader">swapHeader (frame/total intercambiados)</option>
+      <option value="bitFlip">bitFlip (invierte bits dentro de cada byte)</option>
+      <option value="autoTry">autoTry (prueba varios modos)</option>
     </select>
 
-    <label class="muted" style="margin-top:8px">Delay entre partes (ms)</label>
-    <input id="partDelay" type="number" value="140" />
-
-    <div style="margin-top:10px" class="row">
-      <button id="btnSend" onclick="startSend()">🖼️ ENVIAR WOLFCHAN</button>
-      <button style="background:#3a3a3a" onclick="resetDevice()">🔁 REINICIAR</button>
+    <div class="row" style="margin-top:10px">
+      <button id="sendWolfBtn" class="primary">🖼️ ENVIAR WOLFCHAN</button>
+      <button id="sendCanvasBtn" class="ghost">📡 ENVIAR CANVAS</button>
     </div>
 
-    <div id="status" style="margin-top:8px">Estado: esperando acción...</div>
-
-    <div style="margin-top:10px">
-      <label class="muted">Registro (console también)</label>
-      <textarea id="log" readonly style="height:120px"></textarea>
+    <div style="margin-top:8px">
+      <label class="muted">Delay entre partes (ms)</label>
+      <input id="partDelay" type="number" value="140" style="width:100%;margin-top:6px;padding:8px;border-radius:8px;background:#000;border:1px solid #333;color:#ddd" />
     </div>
+
+    <div style="margin-top:10px" class="muted">Log / estado</div>
+    <textarea id="log" readonly style="width:100%;margin-top:6px;background:#000;border:1px solid #222;color:#ddd;padding:8px;resize:vertical"></textarea>
   </div>
 
 <script>
-/* ====== INJECT: tu diseño WOLFCHAN (no destructivo) ====== */
+/*
+  Archivo autocontenido que:
+  - Usa el bridge nativo (window.bridge / window.webkit.messageHandlers) si está disponible.
+  - Como fallback intenta Web Bluetooth (con reconexión automática).
+  - Incluye el diseño wolfchan_mexa en window.MIS_DISENOS.
+  - Provee 4 modos de envío: normal, reverse, swapHeader, bitFlip y autoTry.
+  - transferOled usa totalFrames=1 para evitar que el stick trate las 16 partes como frames.
+*/
+
+/* ====== INJECT: diseño wolfchan_mexa (no destructivo) ====== */
 window.MIS_DISENOS = window.MIS_DISENOS || {};
 window.MIS_DISENOS.wolfchan_mexa = [
   [
@@ -74,27 +86,325 @@ window.MIS_DISENOS.wolfchan_mexa = [
   ]
 ];
 
-/* ====== Utilidades y canvas (mínimas) ====== */
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
-const statusEl = document.getElementById('status');
+/* ====== Estado global y utilidades ====== */
+const state = {
+  bridgeType: null,     // "android" | "ios" | null
+  webGatt: null,        // BluetoothRemoteGATTServer
+  webDevice: null,      // BluetoothDevice
+  webService: null,
+  webChr: null,         // characteristic for write
+  svcUuid: '0000fff0-0000-1000-8000-00805f9b34fb', // default candidate
+  chrUuid: '0000fff1-0000-1000-8000-00805f9b34fb', // default candidate
+  isConnected: false
+};
 const logEl = document.getElementById('log');
-function log(msg){ logEl.value = (new Date()).toLocaleTimeString() + ' — ' + msg + '\n' + logEl.value; console.log(msg) }
+function log(msg){
+  const t = new Date().toLocaleTimeString() + ' — ' + msg;
+  logEl.value = t + '\n' + logEl.value;
+  console.log('[APP]', msg);
+  document.getElementById('status')?.innerText && (document.getElementById('status').innerText = msg);
+}
 
-/* Dibujar una previsualización simple del primer frame */
-function renderPreviewFromHexParts(parts){
+/* detect bridge presence */
+function detectBridge(){
+  if(typeof window.bridge !== 'undefined' && window.bridge !== null) return 'android';
+  if(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.blePairingStart) return 'ios';
+  return null;
+}
+
+/* ====== Conexión: nativa (bridge) o Web Bluetooth ====== */
+async function connectNachimbong(){
+  state.bridgeType = detectBridge();
+  if(state.bridgeType){
+    log('Bridge nativo detectado: ' + state.bridgeType + ' — solicitando emparejado/ conexión via bridge');
+    try{
+      if(state.bridgeType === 'android'){
+        window.bridge.blePairingStart && window.bridge.blePairingStart('');
+      } else {
+        window.webkit.messageHandlers.blePairingStart.postMessage('');
+      }
+      state.isConnected = true; // asumimos que el bridge maneja conexión
+      log('Llamado a blePairingStart. Comprueba la app nativa para completar la conexión.');
+      return true;
+    }catch(e){
+      log('Error al invocar bridge pairing: ' + e);
+      return false;
+    }
+  }
+
+  // Fallback: Web Bluetooth
+  if(!navigator.bluetooth){
+    log('Web Bluetooth no disponible en este WebView / navegador.');
+    return false;
+  }
+
+  try {
+    log('Intentando conexión por Web Bluetooth (pide dispositivo) — selecciona STRAY KIDS LIGHT STICK V2 si aparece');
+    // Se intenta permitir entrada de UUID a futuro; por ahora request con optionalServices que contenga el svcUuid
+    const opts = { acceptAllDevices: true, optionalServices: [state.svcUuid] };
+    const dev = await navigator.bluetooth.requestDevice(opts);
+    state.webDevice = dev;
+    state.webDevice.addEventListener('gattserverdisconnected', onGattDisconnected);
+    log('Conectando GATT...');
+    state.webGatt = await dev.gatt.connect();
+    log('GATT connected — buscando servicio ' + state.svcUuid);
+    try {
+      state.webService = await state.webGatt.getPrimaryService(state.svcUuid);
+      state.webChr = await state.webService.getCharacteristic(state.chrUuid);
+      state.isConnected = true;
+      log('Servicio y característica encontrados (svc:' + state.svcUuid + ', chr:' + state.chrUuid + ')');
+      return true;
+    } catch (svcErr) {
+      // si no encontró con el default, intentar listar servicios para diagnosticar
+      log('No se encontró el servicio/characteristic por UUID. Intento listar servicios disponibles...');
+      const svcs = await state.webGatt.getPrimaryServices();
+      log('Servicios disponibles: ' + svcs.map(s=>s.uuid).join(', '));
+      // no setear isConnected si no hay chr
+      return !!state.webChr;
+    }
+  } catch(err){
+    log('Error Web Bluetooth: ' + (err && err.message ? err.message : err));
+    return false;
+  }
+}
+
+function onGattDisconnected(e){
+  log('Evento: gattserverdisconnected');
+  state.isConnected = false;
+  state.webGatt = null;
+  state.webService = null;
+  state.webChr = null;
+}
+
+/* ensureConnected for Web Bluetooth path */
+async function ensureWebGattConnected(){
+  if(state.webGatt && state.webGatt.connected) return true;
+  if(state.webDevice){
+    try{
+      state.webGatt = await state.webDevice.gatt.connect();
+      log('Re-conectado GATT');
+      state.webService = await state.webGatt.getPrimaryService(state.svcUuid);
+      state.webChr = await state.webService.getCharacteristic(state.chrUuid);
+      state.isConnected = true;
+      return true;
+    }catch(e){
+      log('Reconexion fallida: ' + e);
+      state.isConnected = false;
+      return false;
+    }
+  }
+  return false;
+}
+
+/* Disconnect (bridge or web) */
+function disconnectNachimbong(){
   try{
-    const img = ctx.createImageData(128,128);
-    // reconstruir a partir de partes de 128 bytes (little bit mapping como en frameImageDataToParts invocable inverso)
+    if(state.bridgeType === 'android' && window.bridge && window.bridge.bleDisconnect) { window.bridge.bleDisconnect(''); log('Bridge: bleDisconnect llamado'); }
+    else if(state.bridgeType === 'ios' && window.webkit?.messageHandlers?.bleDisconnect){ window.webkit.messageHandlers.bleDisconnect.postMessage(''); log('webkit: bleDisconnect.postMessage llamado'); }
+    else if(state.webDevice && state.webDevice.gatt && state.webDevice.gatt.connected){ state.webDevice.gatt.disconnect(); log('WebGatt desconectado'); }
+  }catch(e){ log('Error al desconectar: ' + e); }
+  state.isConnected = false;
+  state.webGatt = null;
+  state.webService = null;
+  state.webChr = null;
+}
+
+/* ====== sendCmd: escribe por bridge (string) o por webGatt (bytes) ====== */
+async function sendCmdRaw(cmd){
+  // cmd es string tipo "810F00010000..,-"
+  // preferir bridge
+  state.bridgeType = detectBridge();
+  if(state.bridgeType){
+    try {
+      if(state.bridgeType === 'android' && window.bridge && window.bridge.bleSendCmdList){
+        window.bridge.bleSendCmdList(cmd);
+        log('Enviado via bridge (android) — ' + cmd.slice(0,60) + (cmd.length>60?'...':''));
+        return true;
+      } else if(state.bridgeType === 'ios' && window.webkit?.messageHandlers?.bleSendCmdList){
+        window.webkit.messageHandlers.bleSendCmdList.postMessage(cmd);
+        log('Enviado via bridge (ios) — ' + cmd.slice(0,60) + (cmd.length>60?'...':''));
+        return true;
+      }
+    } catch(e){
+      log('Error enviando via bridge: ' + e);
+    }
+  }
+
+  // Fallback Web Bluetooth: escribir en characteristic como UTF-8 (o como bytes si necesario)
+  if(state.webChr){
+    try{
+      // many devices accept ASCII command strings; convertir a Uint8Array via TextEncoder
+      const data = new TextEncoder().encode(cmd);
+      await ensureWebGattConnected();
+      await state.webChr.writeValue(data);
+      log('Enviado via Web GATT (texto) — ' + cmd.slice(0,60) + (cmd.length>60?'...':''));
+      return true;
+    }catch(e){
+      log('Error escribiendo en characteristic: ' + e);
+      return false;
+    }
+  }
+
+  log('No hay canal de envío disponible (bridge ni webChr).');
+  return false;
+}
+
+/* ====== util: invertir bits en un byte ====== */
+function flipByteBits(b){
+  let r = 0;
+  for(let i=0;i<8;i++) r = (r<<1) | ((b>>i)&1);
+  return r & 0xFF;
+}
+
+/* ====== conversión canvas -> 2048 bytes -> 16 partes hex ====== */
+function canvasToOledPartsFromContext(ctx, bitFlip=false){
+  const img = ctx.getImageData(0,0,128,128).data;
+  const oled = new Uint8Array(2048);
+  for(let y=0;y<128;y++){
+    for(let x=0;x<128;x++){
+      const idx = (y*128+x)*4;
+      if(img[idx] > 128){
+        const byteIdx = Math.floor(y/8)*128 + x;
+        oled[byteIdx] |= (1 << (y%8));
+      }
+    }
+  }
+  const parts = [];
+  for(let p=0;p<16;p++){
+    const slice = oled.slice(p*128,(p+1)*128);
+    if(bitFlip){
+      for(let i=0;i<slice.length;i++) slice[i] = flipByteBits(slice[i]);
+    }
+    parts.push(Array.from(slice).map(b=>b.toString(16).padStart(2,'0')).join(''));
+  }
+  return parts;
+}
+
+/* ====== envíos de diseño con variantes del protocolo ====== */
+async function sendMyDesignVariant(name, mode='normal', partDelay=140){
+  const design = window.MIS_DISENOS?.[name];
+  if(!design){ log('Diseño "'+name+'" no encontrado'); return false; }
+  log('Envío: ' + name + ' modo=' + mode);
+  const totalFrames = design.length;
+
+  for(let f=0; f<totalFrames; f++){
+    const frameParts = design[f]; // array[16] of hex strings
+    let order = [...Array(16).keys()];
+    if(mode === 'reverse') order = order.reverse();
+    const totalHex = totalFrames.toString(16).padStart(4,'0').toUpperCase();
+    const frameHex = f.toString(16).padStart(4,'0').toUpperCase();
+
+    for(let i=0;i<order.length;i++){
+      const p = order[i];
+      let payloadHex = frameParts[p] || ''.padEnd(128*2,'0');
+
+      if(mode === 'bitFlip'){
+        const buf = new Uint8Array(128);
+        for(let j=0;j<128;j++) buf[j] = parseInt(payloadHex.substr(j*2,2),16) || 0;
+        for(let j=0;j<128;j++) buf[j] = flipByteBits(buf[j]);
+        payloadHex = Array.from(buf).map(b=>b.toString(16).padStart(2,'0')).join('');
+      }
+
+      let cmdHeader;
+      if(mode === 'swapHeader'){
+        const partHex = p.toString(16).padStart(2,'0').toUpperCase();
+        // swapped: frame then total
+        cmdHeader = `810F${frameHex}${totalHex}${partHex}`;
+      } else {
+        const partHex = p.toString(16).padStart(2,'0').toUpperCase();
+        cmdHeader = `810F${totalHex}${frameHex}${partHex}`;
+      }
+
+      const cmd = cmdHeader + payloadHex + ",-";
+      const ok = await sendCmdRaw(cmd);
+      if(!ok){ log('Fallo en envío de parte ' + p); return false; }
+      log(`Sent frame ${f+1}/${totalFrames} part ${p+1}/16 (${mode})`);
+      await new Promise(r=>setTimeout(r, partDelay));
+    }
+    await new Promise(r=>setTimeout(r, partDelay + 60));
+  }
+
+  // play
+  await sendCmdRaw("810E01,-");
+  log('Play enviado');
+  return true;
+}
+
+/* Auto-try: intenta normal → reverse → swapHeader → bitFlip si autoTry seleccionado */
+async function sendMyDesignAuto(name){
+  const delay = parseInt(document.getElementById('partDelay').value) || 140;
+  const modes = ['normal','reverse','swapHeader','bitFlip'];
+  for(let m of modes){
+    log('AutoTry: probando ' + m);
+    await sendMyDesignVariant(name, m, delay);
+    // esperar un poco para observar en stick
+    await new Promise(r=>setTimeout(r, 2000));
+  }
+  log('AutoTry finalizado');
+}
+
+/* ====== transferOled para imagen estática (totalFrames = 1) ====== */
+async function transferOledFromCanvas(ctx, partDelay=150){
+  const parts = canvasToOledPartsFromContext(ctx, false);
+  const totalHex = (1).toString(16).padStart(4,'0').toUpperCase(); // 0001
+  const frameHex = (0).toString(16).padStart(4,'0').toUpperCase(); // 0000
+  for(let p=0;p<16;p++){
+    const partHex = p.toString(16).padStart(2,'0').toUpperCase();
+    const payload = parts[p];
+    const cmd = `810F${totalHex}${frameHex}${partHex}${payload},-`;
+    const ok = await sendCmdRaw(cmd);
+    if(!ok){ log('Error enviando parte ' + p); return false; }
+    log(`Enviada parte ${p+1}/16`);
+    await new Promise(r=>setTimeout(r, partDelay));
+  }
+  await sendCmdRaw("810E01,-"); // play
+  log('Imagen estática enviada (PLAY)');
+  return true;
+}
+
+/* ====== UI wiring ====== */
+document.getElementById('connectBtn').addEventListener('click', async ()=>{
+  document.getElementById('connectBtn').disabled = true;
+  const ok = await connectNachimbong();
+  log('connectNachimbong => ' + ok);
+  document.getElementById('connectBtn').disabled = false;
+});
+
+document.getElementById('disconnectBtn').addEventListener('click', ()=>{
+  disconnectNachimbong();
+  log('Desconectado manualmente');
+});
+
+document.getElementById('sendWolfBtn').addEventListener('click', async ()=>{
+  const mode = document.getElementById('sendMode').value;
+  const delay = parseInt(document.getElementById('partDelay').value) || 140;
+  document.getElementById('sendWolfBtn').disabled = true;
+  if(mode === 'autoTry'){
+    await sendMyDesignAuto('wolfchan_mexa');
+  } else {
+    await sendMyDesignVariant('wolfchan_mexa', mode, delay);
+  }
+  document.getElementById('sendWolfBtn').disabled = false;
+});
+
+document.getElementById('sendCanvasBtn').addEventListener('click', async ()=>{
+  document.getElementById('sendCanvasBtn').disabled = true;
+  await transferOledFromCanvas(ctx, parseInt(document.getElementById('partDelay').value) || 150);
+  document.getElementById('sendCanvasBtn').disabled = false;
+});
+
+/* render preview of the first frame on load */
+function renderPreview(){
+  try{
+    const parts = window.MIS_DISENOS?.wolfchan_mexa?.[0] || [];
+    if(!parts.length) { document.getElementById('canvas').getContext('2d').fillStyle='black'; document.getElementById('canvas').getContext('2d').fillRect(0,0,128,128); return; }
+    const ctxLocal = document.getElementById('canvas').getContext('2d');
+    const img = ctxLocal.createImageData(128,128);
     const oled = new Uint8Array(2048);
     for(let p=0;p<parts.length && p<16;p++){
       const hex = parts[p];
-      for(let i=0;i<128;i++){
-        const b = parseInt(hex.substr(i*2,2),16);
-        oled[p*128 + i] = b;
-      }
+      for(let i=0;i<128;i++) oled[p*128 + i] = parseInt(hex.substr(i*2,2),16) || 0;
     }
-    // convertir a RGBA
     for(let y=0;y<128;y++){
       for(let x=0;x<128;x++){
         const byteIdx = Math.floor(y/8)*128 + x;
@@ -105,159 +415,16 @@ function renderPreviewFromHexParts(parts){
         img.data[dst+3] = 255;
       }
     }
-    ctx.putImageData(img,0,0);
-  }catch(e){ console.error(e) }
+    ctxLocal.putImageData(img,0,0);
+  }catch(e){ console.error(e); }
 }
-renderPreviewFromHexParts(window.MIS_DISENOS?.wolfchan_mexa?.[0] || []);
+renderPreview();
 
-/* ====== Helpers bridge ====== */
-function sendCmd(cmd){
-  log('Enviar: ' + cmd.slice(0,80) + (cmd.length>80 ? '...' : ''));
-  if(window.bridge && typeof window.bridge.bleSendCmdList === 'function'){
-    try{ window.bridge.bleSendCmdList(cmd); return true }catch(e){ log('Bridge error: ' + e) ; return false }
-  }
-  if(window.webkit?.messageHandlers?.bleSendCmdList){
-    try{ window.webkit.messageHandlers.bleSendCmdList.postMessage(cmd); return true }catch(e){ log('webkit error: ' + e); return false }
-  }
-  log('Bridge no disponible: corre esto dentro de la app nativa.');
-  return false;
-}
-
-function resetDevice(){
-  log('Enviando comando de reset (8110,-)');
-  try{
-    if(window.bridge) window.bridge.bleSendCmdList("8110,-");
-    else if(window.webkit?.messageHandlers?.bleSendCmdList) window.webkit.messageHandlers.bleSendCmdList.postMessage("8110,-");
-    statusEl.innerText = 'Reset enviado';
-  }catch(e){ statusEl.innerText = 'Error reset: ' + e; }
-}
-
-/* ====== Manipuladores de bits / util ====== */
-function flipByteBits(b){
-  let r = 0;
-  for(let i=0;i<8;i++) r = (r<<1) | ((b>>i)&1);
-  return r & 0xFF;
-}
-function partsFromOledBytes(oledBytes, bitFlip=false){
-  const parts = [];
-  for(let p=0;p<16;p++){
-    const slice = oledBytes.slice(p*128, (p+1)*128);
-    if(bitFlip){
-      for(let i=0;i<slice.length;i++) slice[i] = flipByteBits(slice[i]);
-    }
-    parts.push(Array.from(slice).map(b=>b.toString(16).padStart(2,'0')).join(''));
-  }
-  return parts;
-}
-
-/* ====== Construir payload desde canvas RGBA -> 2048 bytes -> partes ====== */
-function canvasToOledParts(bitFlip=false){
-  const img = ctx.getImageData(0,0,128,128).data;
-  const oled = new Uint8Array(2048);
-  for(let y=0;y<128;y++){
-    for(let x=0;x<128;x++){
-      const idx = (y*128 + x)*4;
-      if(img[idx] > 128){ // umbral simple
-        const byteIdx = Math.floor(y/8)*128 + x;
-        oled[byteIdx] |= (1 << (y%8));
-      }
-    }
-  }
-  return partsFromOledBytes(oled, bitFlip);
-}
-
-/* ====== Envío robusto con variantes del protocolo ====== */
-async function sendMyDesignVariant(name, mode='normal', partDelay=140){
-  const design = window.MIS_DISENOS?.[name];
-  if(!design){ statusEl.innerText = 'Diseño no encontrado: ' + name; log('Diseño no encontrado'); return false; }
-  statusEl.innerText = 'Enviando diseño "'+name+'" modo:'+mode;
-  log('Inicio envío — modo: ' + mode);
-
-  const totalFrames = design.length;
-  // iterar frames (si el diseño tiene >1 frames, respetamos eso)
-  for(let f=0; f<totalFrames; f++){
-    const frameParts = design[f]; // array[16] hex strings
-    // decide orden de partes
-    let order = [...Array(16).keys()];
-    if(mode === 'reverse') order = order.reverse();
-    // construccion de encabezados
-    const totalHex = totalFrames.toString(16).padStart(4,'0').toUpperCase();
-    const frameHex = f.toString(16).padStart(4,'0').toUpperCase();
-
-    for(let i=0;i<order.length;i++){
-      const p = order[i];
-      let payloadHex = frameParts[p] || ''.padEnd(128*2,'0');
-
-      // si mode bitFlip: debemos invertir bits de cada byte antes de hex
-      if(mode === 'bitFlip'){
-        // convertir payloadHex -> bytes -> flip -> back to hex
-        const buf = new Uint8Array(128);
-        for(let j=0;j<128;j++) buf[j] = parseInt(payloadHex.substr(j*2,2),16) || 0;
-        for(let j=0;j<128;j++) buf[j] = flipByteBits(buf[j]);
-        payloadHex = Array.from(buf).map(b=>b.toString(16).padStart(2,'0')).join('');
-      }
-
-      // elegir header segun modo swapHeader o normal
-      let cmdHeader;
-      if(mode === 'swapHeader'){
-        // 810F + frameHex + totalHex + part
-        const partHex = p.toString(16).padStart(2,'0').toUpperCase();
-        cmdHeader = `810F${frameHex}${totalHex}${partHex}`;
-      } else {
-        // normal: 810F + totalHex + frameHex + part
-        const partHex = p.toString(16).padStart(2,'0').toUpperCase();
-        cmdHeader = `810F${totalHex}${frameHex}${partHex}`;
-      }
-
-      const cmd = cmdHeader + payloadHex + ",-";
-      const ok = sendCmd(cmd);
-      if(!ok){ statusEl.innerText = 'Bridge no disponible'; return false; }
-      statusEl.innerText = `Enviando frame ${f+1}/${totalFrames} parte ${p+1}/16`;
-      await new Promise(r=>setTimeout(r, partDelay));
-    }
-    // pequeño delay entre frames
-    await new Promise(r=>setTimeout(r, partDelay + 60));
-  }
-
-  // comando play (final)
-  sendCmd("810E01,-");
-  statusEl.innerText = 'Envío terminado — comando PLAY enviado';
-  log('Play enviado');
-  return true;
-}
-
-/* ====== Auto-try: intenta varias variantes en secuencia (para encontrar la compatible) ====== */
-async function sendMyDesignAuto(name){
-  const delay = parseInt(document.getElementById('partDelay').value) || 140;
-  const modes = ['normal','reverse','swapHeader','bitFlip'];
-  for(let m of modes){
-    log('AutoTry: intentando modo ' + m);
-    await sendMyDesignVariant(name, m, delay);
-    // esperar unos segundos para que puedas observar el resultado en el stick
-    await new Promise(r=>setTimeout(r, 2200));
-  }
-  log('AutoTry completo');
-}
-
-/* ====== Inicio del envío según selector ====== */
-async function startSend(){
-  const mode = document.getElementById('sendMode').value;
-  const delay = parseInt(document.getElementById('partDelay').value) || 140;
-  document.getElementById('btnSend').disabled = true;
-  try{
-    if(mode === 'autoTry'){
-      await sendMyDesignAuto('wolfchan_mexa');
-    } else {
-      await sendMyDesignVariant('wolfchan_mexa', mode, delay);
-    }
-    statusEl.innerText = 'Operación finalizada';
-  }catch(e){
-    statusEl.innerText = 'Error envío: ' + e;
-    log('Error: ' + e);
-  }finally{
-    document.getElementById('btnSend').disabled = false;
-  }
-}
+/* Inicialización detectBridge y log inicial */
+(function init(){
+  const b = detectBridge();
+  log('Inicializado. Bridge detectado: ' + (b || 'ninguno — usará Web Bluetooth si está disponible'));
+})();
 </script>
 </body>
 </html>
