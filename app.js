@@ -235,38 +235,49 @@
     renderOledBytesVariant(bytes, 'standard');
   }
 
-  function renderOledBytesVariant(bytes, mode){
+function renderOledBytesVariant(bytes, mode){
     try{
       const w = 128, h = 128;
       const img = ctx.createImageData(w,h);
-      for(let y=0;y<h;y++){
-        for(let x=0;x<w;x++){
+      ctx.fillStyle = 'black';
+      ctx.fillRect(0,0,128,128); // Limpiar fondo antes
+
+      for(let y=0; y<h; y++){
+        for(let x=0; x<w; x++){
           let bit = 0;
-          try{
-            if(mode === 'standard'){
+          try {
+            if(mode === 'standard') {
+              // Modo SSD1306 (Páginas verticales)
               const byteIdx = Math.floor(y/8) * w + x;
               bit = (bytes[byteIdx] >> (y % 8)) & 1;
-            } else if(mode === 'revbit'){
-              const byteIdx = Math.floor(y/8) * w + x;
-              bit = (bytes[byteIdx] >> (7 - (y % 8))) & 1;
-            } else if(mode === 'transpose'){
+            } 
+            else if(mode === 'rows') {
+              // Modo Horizontal (Byte seguido de Byte por fila)
+              const byteIdx = y * (w/8) + Math.floor(x/8);
+              bit = (bytes[byteIdx] >> (7 - (x % 8))) & 1;
+            }
+            else if(mode === 'transpose') {
+              // Modo Transpuesto (Columnas)
               const byteIdx = Math.floor(x/8) * h + y;
               bit = (bytes[byteIdx] >> (x % 8)) & 1;
-            } else if(mode === 'invert'){
-              const byteIdx = Math.floor(y/8) * w + x;
-              bit = (bytes[byteIdx] >> (y % 8)) & 1; bit = bit ? 0 : 1;
-            } else {
-              const byteIdx = Math.floor(y/8) * w + x;
-              bit = (bytes[byteIdx] >> (y % 8)) & 1;
             }
-          }catch(e){ bit = 0; }
-          const i = (y*w + x) * 4; const color = bit ? 255 : 0;
-          img.data[i] = img.data[i+1] = img.data[i+2] = color; img.data[i+3] = 255;
+            else if(mode === 'revbit') {
+              const byteIdx = Math.floor(y/8) * w + x;
+              bit = (bytes[byteIdx] >> (7 - (y % 8))) & 1;
+            }
+          } catch(e) { bit = 0; }
+          
+          const i = (y*w + x) * 4;
+          const color = bit ? 255 : 0;
+          img.data[i] = img.data[i+1] = img.data[i+2] = color;
+          img.data[i+3] = 255;
         }
       }
       ctx.putImageData(img, 0, 0);
       saveCanvas();
-    }catch(e){ console.error('renderOledBytes error', e); statusEl.innerText = 'Error al renderizar diseño'; }
+    } catch(e) { 
+      statusEl.innerText = 'Error render: ' + mode; 
+    }
   }
 
   // --- Robust extraction of frames from MIS_DISENOS and MIS_ANIMATIONS ---
@@ -436,5 +447,25 @@
     });
 
     setTimeout(() => { try{ initBT(); }catch(e){} }, 1000);
+
+    // Botón mágico para arreglar la vista previa en el celular
+    const fixBtn = document.createElement('button');
+    fixBtn.innerText = "🔄 Cambiar Modo Vista";
+    fixBtn.style = "position:fixed; bottom:10px; right:10px; z-index:9999; padding:10px; background:#ff9600; color:white; border-radius:5px; border:none;";
+    document.body.appendChild(fixBtn);
+
+    let modeIdx = 0;
+    const modes = ['standard', 'rows', 'transpose', 'revbit'];
+
+    fixBtn.onclick = () => {
+      modeIdx = (modeIdx + 1) % modes.length;
+      const currentMode = modes[modeIdx];
+      statusEl.innerText = "Modo: " + currentMode;
+      
+      // Re-cargar el último diseño con el nuevo modo
+      if(window._lastLoadedDesign) {
+         loadDesign(window._lastLoadedDesign, currentMode);
+      }
+    };
   });
 })();
