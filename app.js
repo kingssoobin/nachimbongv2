@@ -243,18 +243,104 @@
     ctx.putImageData(img, 0, 0); saveCanvas();
   }
 
-  function loadDesign(name, mode='standard'){
-    try{
-      if(!window.MIS_DISENOS || !window.MIS_DISENOS[name]){ statusEl.innerText = 'Diseño no encontrado: ' + name; return; }
-      const entry = window.MIS_DISENOS[name][0];
-      if(!Array.isArray(entry)){ statusEl.innerText = 'Formato de diseño inválido'; return; }
-      const hex = entry.join('');
-      const bytes = hexToBytes(hex);
-      if(bytes.length < 2048){ console.warn('Bytes menos de 2048, padding con ceros'); const b = new Uint8Array(2048); b.set(bytes, 0); renderOledBytesVariant(b, mode); }
-      else { const b = bytes.slice(0, 2048); renderOledBytesVariant(b, mode); }
-      window._lastLoadedDesign = name;
-      statusEl.innerText = 'Vista previa: ' + name + ' (modo: ' + mode + ')';
-    }catch(e){ console.error('loadDesign error', e); statusEl.innerText = 'Error cargando diseño'; }
+// --- Helpers para soportar diseños y animaciones desde MIS_DISENOS / MIS_ANIMATIONS ---
+  function padTo2048Bytes(hex) {
+    if (!hex) return '00'.repeat(2048);
+    const needed = 2048*2 - hex.length;
+    if (needed <= 0) return hex.substr(0, 2048*2);
+    return hex + '0'.repeat(needed);
+  }
+
+  function getFramesFromMIS_DISENOS(name) {
+    // MIS_DISENOS[name] expected shape: [ frame0_arrayOfChunks, frame1_arrayOfChunks, ... ]
+    // or old shape: [ arrayOfChunks ] (single frame)
+    if (!window.MIS_DISENOS || !window.MIS_DISENOS[name]) return null;
+    const entry = window.MIS_DISENOS[name];
+    // entry may be an array where each item is an array of chunk-strings (frame)
+    // or entry could be [chunks...] (single frame represented as array of chunk-strings).
+    // Detect: if entry[0] is an array -> treat each entry as a frame-array
+    if (Array.isArray(entry[0]) && entry[0].length > 0 && typeof entry[0][0] === 'string') {
+      // entry is [ frameArr0, frameArr1, ... ]
+      return entry.map(frameArr => {
+        // join chunks -> single hex per frame, padded to 2048 bytes
+        const hex = frameArr.join('').toUpperCase();
+        return padTo2048Bytes(hex);
+      });
+    } else if (Array.isArray(entry) && typeof entry[0] === 'string') {
+      // legacy single-frame: entry is the chunk list for single frame
+      const hex = entry.join('').toUpperCase();
+      return [ padTo2048Bytes(hex) ];
+    }
+    return null;
+  }
+
+  function getFramesForDesign(name) {
+    // Try MIS_ANIMATIONS first (already exported as long hex per frame)
+    if (window.MIS_ANIMATIONS && Array.isArray(window.MIS_ANIMATIONS[name])) {
+      return window.MIS_ANIMATIONS[name].map(h => padTo2048Bytes(String(h).toUpperCase()));
+    }
+    // Then try MIS_DISENOS
+    const fromDisenos = getFramesFromMIS_DISENOS(name);
+    if (fromDisenos && fromDisenos.length) return fromDisenos;
+    return null;
+  }
+
+  // --- Mejorada: loadDesign soporta:
+  //  - name = 'wolfchan_mexa' (single design)
+  //  - name = ['wolfchan_mexa','bangchan_an01'] (array) -> carga ambos como secuencia de frames
+  //  - acepta MIS_ANIMATIONS (pre-exported) y MIS_DISENOS (chunk arrays)
+  function loadDesign(nameOrArray, mode='standard') {
+    try {
+      let framesHex = [];
+
+      if (Array.isArray(nameOrArray)) {
+        // build framesHex concatenando cada diseño pedido
+        for (let nm of nameOrArray) {
+          const f = getFramesForDesign(nm);
+          if (!f) {
+            statusEl.innerText = 'Diseño no encontrado o formato inválido: ' + nm;
+            return;
+          }
+          // push all frames from this design (often single-frame)
+          framesHex.push(...f);
+        }
+      } else {
+        const name = nameOrArray;
+        const f = getFramesForDesign(name);
+        if (!f) {
+          statusEl.innerText = 'Diseño no encontrado: ' + name;
+          return;
+        }
+        framesHex = f;
+      }
+
+      if (!framesHex.length) {
+        statusEl.innerText = 'No se obtuvieron frames para el/los diseño(s).';
+        return;
+      }
+
+      // keep lastFrames for preview & transfer
+      lastFrames = framesHex; // each is a long hex string already padded to 2048 bytes
+      lastFramesChunks = null; // we can derive chunks later if needed
+
+      // render first frame (convert to bytes)
+      const firstHex = lastFrames[0];
+      const bytes = hexToBytes(firstHex);
+      renderOledBytesVariant(bytes, mode);
+
+      window._lastLoadedDesign = Array.isArray(nameOrArray) ? nameOrArray.join(',') : nameOrArray;
+      statusEl.innerText = 'Vista previa: ' + (Array.isArray(nameOrArray) ? ('Animación de: ' + nameOrArray.join(', ')) : nameOrArray) + ' (modo: ' + mode + ', frames: ' + lastFrames.length + ')';
+    } catch (e) {
+      console.error('loadDesign error', e);
+      statusEl.innerText = 'Error cargando diseño';
+    }
+  }
+
+  // Conveniencia para botones: acepta varargs o array
+  function loadDesignAsAnimation(...args) {
+    // caller can pass either multiple string args or a single array
+    const names = (args.length === 1 && Array.isArray(args[0])) ? args[0] : args;
+    loadDesign(names, 'standard');
   }
 
   // expose functions globally used by HTML
