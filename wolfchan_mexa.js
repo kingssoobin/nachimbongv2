@@ -1,4 +1,3 @@
-
 const MIS_DISENOS = {
   "wolfchan_mexa": [
     [
@@ -22,3 +21,4 @@ const MIS_DISENOS = {
   ]
 };
 if (typeof window !== 'undefined') window.MIS_DISENOS = Object.assign(window.MIS_DISENOS || {}, MIS_DISENOS);
+
