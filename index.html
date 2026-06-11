@@ -1,430 +1,475 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Nachimbong OLED Studio — Wolfchan</title>
-  <style>
-    *{box-sizing:border-box}
-    body{font-family:system-ui,Segoe UI,Roboto,-apple-system;background:#0b0b0b;color:#eee;padding:12px;display:flex;flex-direction:column;align-items:center;gap:10px}
-    .panel{background:#111;border:1px solid #222;border-radius:10px;padding:12px;width:100%;max-width:720px}
-    #canvas{image-rendering:pixelated;border:2px solid #ed1c24;background:#000;width:256px;height:256px}
-    .row{display:flex;gap:8px}
-    .row>button{flex:1;padding:10px;border-radius:10px;border:none;cursor:pointer}
-    select,input,textarea,button{font-family:inherit}
-    .muted{color:#9aa}
-    #log{height:160px}
-    button.primary{background:#ed1c24;color:#fff}
-    button.ghost{background:#262626;color:#ccc}
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Nachimbong OLED Studio</title>
+    <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Press+Start+2P&family=Dancing+Script:wght@700&family=Oswald:wght@700&family=Permanent+Marker&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #0a0a0a;
+            color: #eee;
+            padding: 15px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+        h2 { color: #ed1c24; font-size: 1.2rem; letter-spacing: 2px; }
+
+        #canvas {
+            border: 2px solid #ed1c24;
+            background: #000;
+            width: 256px;
+            height: 256px;
+            image-rendering: pixelated;
+            touch-action: none;
+            border-radius: 5px;
+            cursor: crosshair;
+        }
+
+        .panel {
+            background: #111;
+            border: 1px solid #222;
+            border-radius: 12px;
+            padding: 12px;
+            width: 100%;
+            max-width: 320px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .panel-title {
+            font-size: 0.65rem;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            border-bottom: 1px solid #222;
+            padding-bottom: 6px;
+            margin-bottom: 2px;
+        }
+
+        /* LÍNEAS */
+        .lines-selector { display: flex; gap: 6px; }
+        .line-btn {
+            flex: 1;
+            padding: 8px 4px;
+            border-radius: 10px;
+            border: 1px solid #333;
+            background: #000;
+            color: #888;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.15s;
+        }
+        .line-btn.active { border-color: #ed1c24; color: #ed1c24; background: #1a0000; }
+
+        .line-inputs { display: flex; flex-direction: column; gap: 6px; }
+        .line-input-row { display: flex; align-items: center; gap: 6px; }
+        .line-label { font-size: 0.7rem; color: #555; min-width: 18px; }
+        .line-input-row input[type="text"] {
+            flex: 1;
+            padding: 8px 12px;
+            border-radius: 20px;
+            border: 1px solid #333;
+            background: #000;
+            color: white;
+            font-size: 0.9rem;
+            outline: none;
+        }
+        .line-input-row input[type="text"]:focus { border-color: #ed1c24; }
+
+        /* FUENTES */
+        .font-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+        .font-btn {
+            padding: 8px 4px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background: #000;
+            color: #aaa;
+            cursor: pointer;
+            font-size: 0.72rem;
+            text-align: center;
+            transition: all 0.15s;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .font-btn.active { border-color: #ed1c24; color: #ed1c24; background: #1a0000; }
+
+        /* TAMAÑO */
+        .size-row { display: flex; align-items: center; gap: 8px; }
+        .size-row input[type="range"] { flex: 1; accent-color: #ed1c24; }
+        .size-row span { font-size: 0.8rem; color: #888; min-width: 30px; text-align: right; }
+
+        /* BOTÓN APLICAR */
+        #applyTextBtn {
+            padding: 11px;
+            border-radius: 20px;
+            border: none;
+            background: #ed1c24;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+        }
+        #applyTextBtn:active { opacity: 0.8; }
+
+        /* EMOJIS */
+        .emoji-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+        .emoji-tab {
+            padding: 4px 10px;
+            border-radius: 20px;
+            border: 1px solid #333;
+            background: #000;
+            color: #888;
+            cursor: pointer;
+            font-size: 0.7rem;
+        }
+        .emoji-tab.active { border-color: #ed1c24; color: #ed1c24; }
+        .emoji-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 4px;
+        }
+        .emoji-item {
+            aspect-ratio: 1;
+            background: #000;
+            border: 1px solid #222;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.1rem;
+            transition: transform 0.1s;
+        }
+        .emoji-item:active { transform: scale(0.85); border-color: #ed1c24; }
+
+        /* CONTROLES */
+        .controls { display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 320px; }
+        .btn-row { display: flex; gap: 8px; }
+        button.main-btn {
+            flex: 1;
+            padding: 13px;
+            font-weight: bold;
+            border-radius: 25px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        #sendBtn { background: #ed1c24; color: white; }
+        #clearBtn { background: #1a1a1a; color: #aaa; border: 1px solid #333; }
+        #reconnectBtn { background: #000; color: #1e90ff; border: 1px solid #1e90ff; }
+        #resetDevBtn { background: #000; color: #ff9900; border: 1px solid #ff9900; }
+
+        #status {
+            color: #888;
+            font-size: 0.78em;
+            min-height: 20px;
+            text-align: center;
+            padding: 4px;
+        }
+
+        /* Ocultar líneas según selección */
+        .line-row { transition: opacity 0.2s; }
+        .line-row.hidden { opacity: 0.2; pointer-events: none; }
+    </style>
 </head>
 <body>
-  <h2>Nachimbong OLED Studio — Wolfchan</h2>
 
-  <canvas id="canvas" width="128" height="128"></canvas>
+<h2>⬛ OLED STUDIO</h2>
 
-  <div class="panel">
-    <div class="muted">Conexión</div>
-    <div class="row" style="margin-top:8px">
-      <button id="connectBtn" class="primary">🔌 Conectar / Emparejar</button>
-      <button id="disconnectBtn" class="ghost">⛔ Desconectar</button>
+<canvas id="canvas" width="128" height="128"></canvas>
+
+<!-- EDITOR DE TEXTO -->
+<div class="panel">
+    <div class="panel-title">✏️ Editor de Texto</div>
+
+    <!-- Selector de líneas -->
+    <div class="lines-selector">
+        <button class="line-btn active" data-lines="1" onclick="setLines(1, this)">1 Línea</button>
+        <button class="line-btn" data-lines="2" onclick="setLines(2, this)">2 Líneas</button>
+        <button class="line-btn" data-lines="3" onclick="setLines(3, this)">3 Líneas</button>
     </div>
 
-    <div style="margin-top:12px" class="muted">Modo de envío</div>
-    <select id="sendMode" style="margin-top:6px">
-      <option value="normal">normal (total=frames, frame=index, parts 0→15)</option>
-      <option value="reverse">reverse (partes 15→0)</option>
-      <option value="swapHeader">swapHeader (frame/total intercambiados)</option>
-      <option value="bitFlip">bitFlip (invierte bits dentro de cada byte)</option>
-      <option value="autoTry">autoTry (prueba varios modos)</option>
-    </select>
-
-    <div class="row" style="margin-top:10px">
-      <button id="sendWolfBtn" class="primary">🖼️ ENVIAR WOLFCHAN</button>
-      <button id="sendCanvasBtn" class="ghost">📡 ENVIAR CANVAS</button>
+    <!-- Inputs de líneas -->
+    <div class="line-inputs">
+        <div class="line-input-row line-row" id="row1">
+            <span class="line-label">L1</span>
+            <input type="text" id="line1" placeholder="Línea 1..." maxlength="20">
+        </div>
+        <div class="line-input-row line-row hidden" id="row2">
+            <span class="line-label">L2</span>
+            <input type="text" id="line2" placeholder="Línea 2..." maxlength="20">
+        </div>
+        <div class="line-input-row line-row hidden" id="row3">
+            <span class="line-label">L3</span>
+            <input type="text" id="line3" placeholder="Línea 3..." maxlength="20">
+        </div>
     </div>
 
-    <div style="margin-top:8px">
-      <label class="muted">Delay entre partes (ms)</label>
-      <input id="partDelay" type="number" value="140" style="width:100%;margin-top:6px;padding:8px;border-radius:8px;background:#000;border:1px solid #333;color:#ddd" />
+    <!-- Fuentes -->
+    <div class="panel-title" style="margin-top:4px;">Fuente</div>
+    <div class="font-grid">
+        <button class="font-btn active" data-font="Arial" onclick="selectFont(this)">Normal</button>
+        <button class="font-btn" data-font="serif" onclick="selectFont(this)" style="font-family:serif;">Serif</button>
+        <button class="font-btn" data-font="monospace" onclick="selectFont(this)" style="font-family:monospace;">Mono</button>
+        <button class="font-btn" data-font="Pacifico" onclick="selectFont(this)" style="font-family:'Pacifico';">Pacifico</button>
+        <button class="font-btn" data-font="'Press Start 2P'" onclick="selectFont(this)" style="font-family:'Press Start 2P';font-size:0.55rem;">Pixel</button>
+        <button class="font-btn" data-font="'Dancing Script'" onclick="selectFont(this)" style="font-family:'Dancing Script';">Script</button>
+        <button class="font-btn" data-font="Oswald" onclick="selectFont(this)" style="font-family:'Oswald';">Oswald</button>
+        <button class="font-btn" data-font="'Permanent Marker'" onclick="selectFont(this)" style="font-family:'Permanent Marker';">Marker</button>
+        <button class="font-btn" data-font="fantasy" onclick="selectFont(this)" style="font-family:fantasy;">Fantasy</button>
     </div>
 
-    <div style="margin-top:10px" class="muted">Log / estado</div>
-    <textarea id="log" readonly style="width:100%;margin-top:6px;background:#000;border:1px solid #222;color:#ddd;padding:8px;resize:vertical"></textarea>
-  </div>
+    <!-- Tamaño -->
+    <div class="panel-title" style="margin-top:4px;">Tamaño</div>
+    <div class="size-row">
+        <input type="range" id="fontSize" min="8" max="60" value="24"
+            oninput="document.getElementById('sizeVal').innerText=this.value">
+        <span id="sizeVal">24</span>px
+    </div>
+
+    <button id="applyTextBtn" onclick="applyText()">APLICAR AL CANVAS</button>
+</div>
+
+<!-- GALERÍA DE EMOJIS -->
+<div class="panel">
+    <div class="panel-title">😀 Emojis & Símbolos</div>
+    <div class="emoji-tabs">
+        <button class="emoji-tab active" onclick="showEmojiCat('fav', this)">⭐ Fav</button>
+        <button class="emoji-tab" onclick="showEmojiCat('faces', this)">😀 Caras</button>
+        <button class="emoji-tab" onclick="showEmojiCat('nature', this)">🌿 Nat</button>
+        <button class="emoji-tab" onclick="showEmojiCat('objects', this)">💎 Obj</button>
+        <button class="emoji-tab" onclick="showEmojiCat('symbols', this)">♥ Sim</button>
+    </div>
+    <div class="emoji-grid" id="emojiGrid"></div>
+</div>
+
+<!-- CONTROLES -->
+<div class="controls">
+    <div class="btn-row">
+        <button class="main-btn" id="clearBtn" onclick="clearCanvas()">🧹 LIMPIAR</button>
+        <button class="main-btn" id="sendBtn" onclick="transferOled()">📡 ENVIAR</button>
+    </div>
+    <div class="btn-row">
+        <button class="main-btn" id="reconnectBtn" onclick="initBT()">🔄 RECONECTAR</button>
+        <button class="main-btn" id="resetDevBtn" onclick="resetDevice()">🔁 REINICIAR</button>
+    </div>
+    <div id="status">Iniciando...</div>
+</div>
 
 <script>
-/*
-  Archivo autocontenido que:
-  - Usa el bridge nativo (window.bridge / window.webkit.messageHandlers) si está disponible.
-  - Como fallback intenta Web Bluetooth (con reconexión automática).
-  - Incluye el diseño wolfchan_mexa en window.MIS_DISENOS.
-  - Provee 4 modos de envío: normal, reverse, swapHeader, bitFlip y autoTry.
-  - transferOled usa totalFrames=1 para evitar que el stick trate las 16 partes como frames.
-*/
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const statusEl = document.getElementById('status');
+    let isDrawing = false;
+    let selectedFont = "Arial";
+    let numLines = 1;
 
-/* ====== INJECT: diseño wolfchan_mexa (no destructivo) ====== */
-window.MIS_DISENOS = window.MIS_DISENOS || {};
-window.MIS_DISENOS.wolfchan_mexa = [
-  [
-    "000000000006000000000C000000000000000000003F000000001F00000000000000000001FF000000003FE000000000000000000F838007C000787C00000000000000001E03800FC000701E00000000000000003C10C01FF000630F000000000000000038FC403FF80087C7000000000000000071FE007FFC009FE3C0000000",
-    "0000000073FE20FFFC008FF18000000000000000F3FF21FFFF018FF9C000000000000000E7FF07FFFF019FF9C000000000000001E7FF17FFFF011FF9E000000000000001CFFF9FFFFF033FFCE000000000000003CFFF9FFFFFC33FFCF0000000000000039FFFDFFFFFC63FFE70000000000000079FE7CFFFFFC679FE78000000",
-    "000000073F83CFFFFFC6707F38000000000000073F81FFFFFFFC607F3C000000000000073F01BFFFFFF0E03F380000000000000F3F01BFFFFFF0E03F1C0000000000000E7E00BFFFFFF0C01F9C0000000000000E7E00BFFFFFF1C01F9C0000000000000E7C00BFFFFFF1C00FDC0000000000000E7C007FFFFFFF800F9E000000",
-    "0000001E7C00FFFFFFFC800F9C0000000000001CF800FFFFFFFC800FDE0000000000001CF800FFFFFFFC0007CF0000000000001CF800FFFFFFFC0007CE0000000000003CF800FFFFFFFC0003C700000000000038F801FFFFFFFF0003C700000000000038F803FFFFFFFF0007CF00000000000039F00007FFFFC07803E7000000",
-    "00000039F00007FFFFC03003E7000000000000001FF8000000003FF803000000000000001FF8000000001FF0030000000000007FFFE0000000000FFFFC000000000000FFFFE0000000000FFFFC00000000001FFFFFE0000000000FFFFC30000000001FFFFFE0000000000FFFFFF000000000007FFFE7F000001FCFFFFC000000",
-    "00003FFFFFFFF800001FCFFFFFC0000000003F81FF9FFFFFFFFFF3FF03F0000000003FC1FF9FFFFFFFFFF3FF03F0000000003FFE019FFFFFFFFFF300FFF0000000001FFFDF9FFFFFFFFFF3FEFFF000000000199FFE8007FFFFC000FFFF1000000000188FFFFFFFFE3FFFFFFFFE1000000000060667FFF800003FFFACCC000000",
-    "0000060267FFFFFC1FFFFF94CC000000000000018999FFFFFFFFF31030000000000000000111FFFFFFFFF11000000000000000000060667FC44440C000400000000000000000003B800000000200000000000040000010110101000002000000000000F20000101101010000CF000000000000F20000000400000000CF000000",
-    "000000E7FE000000000000FFE700000000000067FE000000000180FFE7000000000000E7FFF9F800003FFFFFE7000000000001E7FFF9F800003FFFFFE7800000000001E7FFF9FFCFFFFFFFFFE7800000000001CFFFF9FFCFFFFFFFFFF3800000000001CFFFF9FFCFFFFFFFFFF3800000000001CFFFF8FFCFFFFFFFFFF3800000",
-    "000001CFFFFCFFCFFFFFFFFFF3800000000000CFFFFE7FCFFFFFFFFFF3800000000001CFFFFE3FCFFFFFFFFFF3800000000003CFFFFF1FC7FFFFFFFFF3C00000000003CFFFFF87E7FFFFFFFFF3C000000000039FFFFFE3F3FFFFFFFFF9C000000000039FFFFFF873FFFFFFFFF9C000000000039FFFFC1C07FFF83FFFF9C00000",
-    "0000039FFFE00707FFE007FFF9C000000000039FFFC3E1FFFF87C3FFF9C000000000039FFF9FF8FFFF1FF9FFF9C000000000039FFE3FFCFFFF3FFC7FF9C000000000039FFE7FFE7FFE3FFE3FF9C000000000039FFCFFFE7FFE7FFF3FF9C000000000039FFCFFFF3FFCFFFF1FF9C000000000039FF9FFFF3FFE7FFF9FF9C00000",
-    "0000039FF9FFFF3FFE7FFF9FF9C000000000039FF3FFFF3FFCFFFFCFF9C000000000039FF3FFFF9FF9FFFFE7F9C000000000039FF3C0079FFDE003CFF9C000000000039FF380039FFCC001CFF9C000000000039FE700039FF9C000E7F9C000000000039FE60FFFC003FFF067F9C000000000039FE7FFFF8001FFFFE7F9C00000",
-    "0000039FE7FFFF8000FFFFE7F9C000000000039FE7FFFF8001FFFFE7F9C000000000039FE7FFFF8001FFFFE7F9C000000000039FE7FFFF8001FFFFE7F9C000000000039FE7FFFF8000FFFFE7F9C000000000039FCFFFFF8001FFFFF3F9C000000000039FCFFFFFC003FFFFF9F9C00000000003801FFFFFE007FFFFF801C00000000003803FFFFFF81FFFFFFC01C00000",
-    "0000039FFFFFFFFFFFFFFFFFF9C00000000003CFFFC3FFFFFFFFE3FFF3C00000000003CFFFC1FCFFFF1FC1FFF3C00000000001CFFF81FC1FF83FC1FFF3800000000000CFFFC3FF0000FFC1FFF3800000000001E7FFC7FFE007FFE3FFE7800000000001E7FFFFFFFFFFFFFFFFE7800000000000F3FFFFFFFFFFFFFFFFC7000000",
-    "000000F3FFFFFFFFFFFFFFFFCF00000000000079FFFFFFFFFFFFFFFF9E000000000000787FFFFFFFFFFFFFFE1E0000000000003E3FFFFFFFFFFFFFFC7C0000000000001F8FFFFFFFFFFFFFF1FC0000000000000FC7FFFFFFFFFFFFE3F000000000000003F1FFFFFFFFFFFF8FC000000000000001F87FFFFFFFFFFE1F80000000",
-    "000000007E1FFFFFFFFFF87E00000000000000003F87FFFFFFFFE1FC00000000000000000FE1FFFFFFFF87F0000000000000000003F83FFFFFFC1FC0000000000000000000FE07FFFFE07F000000000000000000003FC03FFC03FC000000000000000000000FF800001FF00000000000000000000001FFC003FF800000000000",
-    "0000000000003FFFFFFC00000000000000000000000001FFFF8000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
-  ]
-];
+    // ── EMOJIS ──────────────────────────────────────────────
+    const emojiCats = {
+        fav:     ['❤️','⭐','⚡','🔥','👑','🐺','🌙','✨','🎵','💎','🦋','🌸','💫','🎀','🏆','🌈'],
+        faces:   ['😀','😍','🥰','😎','🤩','😭','😤','🥺','😂','🤣','😊','🙃','😏','🤔','😴','👻'],
+        nature:  ['🌸','🌺','🌻','🌹','🍀','🌿','🌊','🌋','🌙','☀️','⛅','❄️','🌈','🦋','🐺','🦊'],
+        objects: ['💎','🎵','🎶','🎸','🎹','🎤','🎧','🏆','🎯','🎲','🎮','📱','💻','🔮','⚔️','🛸'],
+        symbols: ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','♥','★','☆','♦','♣','♠','✦','✧']
+    };
+    let currentCat = 'fav';
 
-/* ====== Estado global y utilidades ====== */
-const state = {
-  bridgeType: null,     // "android" | "ios" | null
-  webGatt: null,        // BluetoothRemoteGATTServer
-  webDevice: null,      // BluetoothDevice
-  webService: null,
-  webChr: null,         // characteristic for write
-  svcUuid: '0000fff0-0000-1000-8000-00805f9b34fb', // default candidate
-  chrUuid: '0000fff1-0000-1000-8000-00805f9b34fb', // default candidate
-  isConnected: false
-};
-const logEl = document.getElementById('log');
-function log(msg){
-  const t = new Date().toLocaleTimeString() + ' — ' + msg;
-  logEl.value = t + '\n' + logEl.value;
-  console.log('[APP]', msg);
-  document.getElementById('status')?.innerText && (document.getElementById('status').innerText = msg);
-}
-
-/* detect bridge presence */
-function detectBridge(){
-  if(typeof window.bridge !== 'undefined' && window.bridge !== null) return 'android';
-  if(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.blePairingStart) return 'ios';
-  return null;
-}
-
-/* ====== Conexión: nativa (bridge) o Web Bluetooth ====== */
-async function connectNachimbong(){
-  state.bridgeType = detectBridge();
-  if(state.bridgeType){
-    log('Bridge nativo detectado: ' + state.bridgeType + ' — solicitando emparejado/ conexión via bridge');
-    try{
-      if(state.bridgeType === 'android'){
-        window.bridge.blePairingStart && window.bridge.blePairingStart('');
-      } else {
-        window.webkit.messageHandlers.blePairingStart.postMessage('');
-      }
-      state.isConnected = true; // asumimos que el bridge maneja conexión
-      log('Llamado a blePairingStart. Comprueba la app nativa para completar la conexión.');
-      return true;
-    }catch(e){
-      log('Error al invocar bridge pairing: ' + e);
-      return false;
+    function showEmojiCat(cat, btn) {
+        currentCat = cat;
+        document.querySelectorAll('.emoji-tab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderEmojis();
     }
-  }
 
-  // Fallback: Web Bluetooth
-  if(!navigator.bluetooth){
-    log('Web Bluetooth no disponible en este WebView / navegador.');
-    return false;
-  }
-
-  try {
-    log('Intentando conexión por Web Bluetooth (pide dispositivo) — selecciona STRAY KIDS LIGHT STICK V2 si aparece');
-    // Se intenta permitir entrada de UUID a futuro; por ahora request con optionalServices que contenga el svcUuid
-    const opts = { acceptAllDevices: true, optionalServices: [state.svcUuid] };
-    const dev = await navigator.bluetooth.requestDevice(opts);
-    state.webDevice = dev;
-    state.webDevice.addEventListener('gattserverdisconnected', onGattDisconnected);
-    log('Conectando GATT...');
-    state.webGatt = await dev.gatt.connect();
-    log('GATT connected — buscando servicio ' + state.svcUuid);
-    try {
-      state.webService = await state.webGatt.getPrimaryService(state.svcUuid);
-      state.webChr = await state.webService.getCharacteristic(state.chrUuid);
-      state.isConnected = true;
-      log('Servicio y característica encontrados (svc:' + state.svcUuid + ', chr:' + state.chrUuid + ')');
-      return true;
-    } catch (svcErr) {
-      // si no encontró con el default, intentar listar servicios para diagnosticar
-      log('No se encontró el servicio/characteristic por UUID. Intento listar servicios disponibles...');
-      const svcs = await state.webGatt.getPrimaryServices();
-      log('Servicios disponibles: ' + svcs.map(s=>s.uuid).join(', '));
-      // no setear isConnected si no hay chr
-      return !!state.webChr;
+    function renderEmojis() {
+        const grid = document.getElementById('emojiGrid');
+        grid.innerHTML = '';
+        emojiCats[currentCat].forEach(em => {
+            const div = document.createElement('div');
+            div.className = 'emoji-item';
+            div.textContent = em;
+            div.onclick = () => loadEmoji(em);
+            grid.appendChild(div);
+        });
     }
-  } catch(err){
-    log('Error Web Bluetooth: ' + (err && err.message ? err.message : err));
-    return false;
-  }
-}
 
-function onGattDisconnected(e){
-  log('Evento: gattserverdisconnected');
-  state.isConnected = false;
-  state.webGatt = null;
-  state.webService = null;
-  state.webChr = null;
-}
-
-/* ensureConnected for Web Bluetooth path */
-async function ensureWebGattConnected(){
-  if(state.webGatt && state.webGatt.connected) return true;
-  if(state.webDevice){
-    try{
-      state.webGatt = await state.webDevice.gatt.connect();
-      log('Re-conectado GATT');
-      state.webService = await state.webGatt.getPrimaryService(state.svcUuid);
-      state.webChr = await state.webService.getCharacteristic(state.chrUuid);
-      state.isConnected = true;
-      return true;
-    }catch(e){
-      log('Reconexion fallida: ' + e);
-      state.isConnected = false;
-      return false;
+    function loadEmoji(emoji) {
+        clearCanvas();
+        ctx.fillStyle = "white";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = "90px Arial";
+        ctx.fillText(emoji, 64, 68);
+        saveCanvas();
+        statusEl.innerText = "Emoji cargado: " + emoji;
     }
-  }
-  return false;
-}
 
-/* Disconnect (bridge or web) */
-function disconnectNachimbong(){
-  try{
-    if(state.bridgeType === 'android' && window.bridge && window.bridge.bleDisconnect) { window.bridge.bleDisconnect(''); log('Bridge: bleDisconnect llamado'); }
-    else if(state.bridgeType === 'ios' && window.webkit?.messageHandlers?.bleDisconnect){ window.webkit.messageHandlers.bleDisconnect.postMessage(''); log('webkit: bleDisconnect.postMessage llamado'); }
-    else if(state.webDevice && state.webDevice.gatt && state.webDevice.gatt.connected){ state.webDevice.gatt.disconnect(); log('WebGatt desconectado'); }
-  }catch(e){ log('Error al desconectar: ' + e); }
-  state.isConnected = false;
-  state.webGatt = null;
-  state.webService = null;
-  state.webChr = null;
-}
-
-/* ====== sendCmd: escribe por bridge (string) o por webGatt (bytes) ====== */
-async function sendCmdRaw(cmd){
-  // cmd es string tipo "810F00010000..,-"
-  // preferir bridge
-  state.bridgeType = detectBridge();
-  if(state.bridgeType){
-    try {
-      if(state.bridgeType === 'android' && window.bridge && window.bridge.bleSendCmdList){
-        window.bridge.bleSendCmdList(cmd);
-        log('Enviado via bridge (android) — ' + cmd.slice(0,60) + (cmd.length>60?'...':''));
-        return true;
-      } else if(state.bridgeType === 'ios' && window.webkit?.messageHandlers?.bleSendCmdList){
-        window.webkit.messageHandlers.bleSendCmdList.postMessage(cmd);
-        log('Enviado via bridge (ios) — ' + cmd.slice(0,60) + (cmd.length>60?'...':''));
-        return true;
-      }
-    } catch(e){
-      log('Error enviando via bridge: ' + e);
+    // ── LÍNEAS ───────────────────────────────────────────────
+    function setLines(n, btn) {
+        numLines = n;
+        document.querySelectorAll('.line-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('row1').classList.toggle('hidden', false);
+        document.getElementById('row2').classList.toggle('hidden', n < 2);
+        document.getElementById('row3').classList.toggle('hidden', n < 3);
+        // Ajustar tamaño sugerido
+        const sizeMap = { 1: 28, 2: 22, 3: 16 };
+        document.getElementById('fontSize').value = sizeMap[n];
+        document.getElementById('sizeVal').innerText = sizeMap[n];
     }
-  }
 
-  // Fallback Web Bluetooth: escribir en characteristic como UTF-8 (o como bytes si necesario)
-  if(state.webChr){
-    try{
-      // many devices accept ASCII command strings; convertir a Uint8Array via TextEncoder
-      const data = new TextEncoder().encode(cmd);
-      await ensureWebGattConnected();
-      await state.webChr.writeValue(data);
-      log('Enviado via Web GATT (texto) — ' + cmd.slice(0,60) + (cmd.length>60?'...':''));
-      return true;
-    }catch(e){
-      log('Error escribiendo en characteristic: ' + e);
-      return false;
+    // ── FUENTES ──────────────────────────────────────────────
+    function selectFont(btn) {
+        document.querySelectorAll('.font-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedFont = btn.dataset.font;
     }
-  }
 
-  log('No hay canal de envío disponible (bridge ni webChr).');
-  return false;
-}
+    // ── TEXTO ────────────────────────────────────────────────
+    function applyText() {
+        const lines = [
+            document.getElementById('line1').value.trim(),
+            document.getElementById('line2').value.trim(),
+            document.getElementById('line3').value.trim()
+        ].slice(0, numLines).filter(l => l.length > 0);
 
-/* ====== util: invertir bits en un byte ====== */
-function flipByteBits(b){
-  let r = 0;
-  for(let i=0;i<8;i++) r = (r<<1) | ((b>>i)&1);
-  return r & 0xFF;
-}
+        if (lines.length === 0) { statusEl.innerText = "⚠️ Escribe algo primero."; return; }
 
-/* ====== conversión canvas -> 2048 bytes -> 16 partes hex ====== */
-function canvasToOledPartsFromContext(ctx, bitFlip=false){
-  const img = ctx.getImageData(0,0,128,128).data;
-  const oled = new Uint8Array(2048);
-  for(let y=0;y<128;y++){
-    for(let x=0;x<128;x++){
-      const idx = (y*128+x)*4;
-      if(img[idx] > 128){
-        const byteIdx = Math.floor(y/8)*128 + x;
-        oled[byteIdx] |= (1 << (y%8));
-      }
+        const size = parseInt(document.getElementById('fontSize').value);
+        ctx.fillStyle = "white";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = `bold ${size}px ${selectedFont}`;
+
+        const lineHeight = size * 1.25;
+        const totalH = lineHeight * lines.length;
+        const startY = (128 - totalH) / 2 + lineHeight / 2;
+
+        lines.forEach((line, i) => {
+            ctx.fillText(line, 64, startY + i * lineHeight);
+        });
+
+        saveCanvas();
+        statusEl.innerText = `✅ ${lines.length} línea(s) aplicada(s).`;
     }
-  }
-  const parts = [];
-  for(let p=0;p<16;p++){
-    const slice = oled.slice(p*128,(p+1)*128);
-    if(bitFlip){
-      for(let i=0;i<slice.length;i++) slice[i] = flipByteBits(slice[i]);
+
+    // ── CANVAS ───────────────────────────────────────────────
+    function getPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return {
+            x: (clientX - rect.left) * (128 / rect.width),
+            y: (clientY - rect.top) * (128 / rect.height)
+        };
     }
-    parts.push(Array.from(slice).map(b=>b.toString(16).padStart(2,'0')).join(''));
-  }
-  return parts;
-}
+    canvas.addEventListener('pointerdown', (e) => { isDrawing = true; draw(e); });
+    window.addEventListener('pointerup', () => { if (isDrawing) { isDrawing = false; saveCanvas(); } });
+    canvas.addEventListener('pointermove', draw);
 
-/* ====== envíos de diseño con variantes del protocolo ====== */
-async function sendMyDesignVariant(name, mode='normal', partDelay=140){
-  const design = window.MIS_DISENOS?.[name];
-  if(!design){ log('Diseño "'+name+'" no encontrado'); return false; }
-  log('Envío: ' + name + ' modo=' + mode);
-  const totalFrames = design.length;
-
-  for(let f=0; f<totalFrames; f++){
-    const frameParts = design[f]; // array[16] of hex strings
-    let order = [...Array(16).keys()];
-    if(mode === 'reverse') order = order.reverse();
-    const totalHex = totalFrames.toString(16).padStart(4,'0').toUpperCase();
-    const frameHex = f.toString(16).padStart(4,'0').toUpperCase();
-
-    for(let i=0;i<order.length;i++){
-      const p = order[i];
-      let payloadHex = frameParts[p] || ''.padEnd(128*2,'0');
-
-      if(mode === 'bitFlip'){
-        const buf = new Uint8Array(128);
-        for(let j=0;j<128;j++) buf[j] = parseInt(payloadHex.substr(j*2,2),16) || 0;
-        for(let j=0;j<128;j++) buf[j] = flipByteBits(buf[j]);
-        payloadHex = Array.from(buf).map(b=>b.toString(16).padStart(2,'0')).join('');
-      }
-
-      let cmdHeader;
-      if(mode === 'swapHeader'){
-        const partHex = p.toString(16).padStart(2,'0').toUpperCase();
-        // swapped: frame then total
-        cmdHeader = `810F${frameHex}${totalHex}${partHex}`;
-      } else {
-        const partHex = p.toString(16).padStart(2,'0').toUpperCase();
-        cmdHeader = `810F${totalHex}${frameHex}${partHex}`;
-      }
-
-      const cmd = cmdHeader + payloadHex + ",-";
-      const ok = await sendCmdRaw(cmd);
-      if(!ok){ log('Fallo en envío de parte ' + p); return false; }
-      log(`Sent frame ${f+1}/${totalFrames} part ${p+1}/16 (${mode})`);
-      await new Promise(r=>setTimeout(r, partDelay));
+    function draw(e) {
+        if (!isDrawing) return;
+        ctx.fillStyle = "white";
+        const pos = getPos(e);
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, 3, 0, Math.PI * 2);
+        ctx.fill();
     }
-    await new Promise(r=>setTimeout(r, partDelay + 60));
-  }
 
-  // play
-  await sendCmdRaw("810E01,-");
-  log('Play enviado');
-  return true;
-}
-
-/* Auto-try: intenta normal → reverse → swapHeader → bitFlip si autoTry seleccionado */
-async function sendMyDesignAuto(name){
-  const delay = parseInt(document.getElementById('partDelay').value) || 140;
-  const modes = ['normal','reverse','swapHeader','bitFlip'];
-  for(let m of modes){
-    log('AutoTry: probando ' + m);
-    await sendMyDesignVariant(name, m, delay);
-    // esperar un poco para observar en stick
-    await new Promise(r=>setTimeout(r, 2000));
-  }
-  log('AutoTry finalizado');
-}
-
-/* ====== transferOled para imagen estática (totalFrames = 1) ====== */
-async function transferOledFromCanvas(ctx, partDelay=150){
-  const parts = canvasToOledPartsFromContext(ctx, false);
-  const totalHex = (1).toString(16).padStart(4,'0').toUpperCase(); // 0001
-  const frameHex = (0).toString(16).padStart(4,'0').toUpperCase(); // 0000
-  for(let p=0;p<16;p++){
-    const partHex = p.toString(16).padStart(2,'0').toUpperCase();
-    const payload = parts[p];
-    const cmd = `810F${totalHex}${frameHex}${partHex}${payload},-`;
-    const ok = await sendCmdRaw(cmd);
-    if(!ok){ log('Error enviando parte ' + p); return false; }
-    log(`Enviada parte ${p+1}/16`);
-    await new Promise(r=>setTimeout(r, partDelay));
-  }
-  await sendCmdRaw("810E01,-"); // play
-  log('Imagen estática enviada (PLAY)');
-  return true;
-}
-
-/* ====== UI wiring ====== */
-document.getElementById('connectBtn').addEventListener('click', async ()=>{
-  document.getElementById('connectBtn').disabled = true;
-  const ok = await connectNachimbong();
-  log('connectNachimbong => ' + ok);
-  document.getElementById('connectBtn').disabled = false;
-});
-
-document.getElementById('disconnectBtn').addEventListener('click', ()=>{
-  disconnectNachimbong();
-  log('Desconectado manualmente');
-});
-
-document.getElementById('sendWolfBtn').addEventListener('click', async ()=>{
-  const mode = document.getElementById('sendMode').value;
-  const delay = parseInt(document.getElementById('partDelay').value) || 140;
-  document.getElementById('sendWolfBtn').disabled = true;
-  if(mode === 'autoTry'){
-    await sendMyDesignAuto('wolfchan_mexa');
-  } else {
-    await sendMyDesignVariant('wolfchan_mexa', mode, delay);
-  }
-  document.getElementById('sendWolfBtn').disabled = false;
-});
-
-document.getElementById('sendCanvasBtn').addEventListener('click', async ()=>{
-  document.getElementById('sendCanvasBtn').disabled = true;
-  await transferOledFromCanvas(ctx, parseInt(document.getElementById('partDelay').value) || 150);
-  document.getElementById('sendCanvasBtn').disabled = false;
-});
-
-/* render preview of the first frame on load */
-function renderPreview(){
-  try{
-    const parts = window.MIS_DISENOS?.wolfchan_mexa?.[0] || [];
-    if(!parts.length) { document.getElementById('canvas').getContext('2d').fillStyle='black'; document.getElementById('canvas').getContext('2d').fillRect(0,0,128,128); return; }
-    const ctxLocal = document.getElementById('canvas').getContext('2d');
-    const img = ctxLocal.createImageData(128,128);
-    const oled = new Uint8Array(2048);
-    for(let p=0;p<parts.length && p<16;p++){
-      const hex = parts[p];
-      for(let i=0;i<128;i++) oled[p*128 + i] = parseInt(hex.substr(i*2,2),16) || 0;
+    function clearCanvas() {
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, 128, 128);
+        saveCanvas();
     }
-    for(let y=0;y<128;y++){
-      for(let x=0;x<128;x++){
-        const byteIdx = Math.floor(y/8)*128 + x;
-        const bit = (oled[byteIdx] >> (y%8)) & 1;
-        const dst = (y*128 + x)*4;
-        const v = bit ? 255 : 0;
-        img.data[dst] = img.data[dst+1] = img.data[dst+2] = v;
-        img.data[dst+3] = 255;
-      }
-    }
-    ctxLocal.putImageData(img,0,0);
-  }catch(e){ console.error(e); }
-}
-renderPreview();
+    function saveCanvas() { try { localStorage.setItem('last_oled_img', canvas.toDataURL()); } catch(e){} }
 
-/* Inicialización detectBridge y log inicial */
-(function init(){
-  const b = detectBridge();
-  log('Inicializado. Bridge detectado: ' + (b || 'ninguno — usará Web Bluetooth si está disponible'));
-})();
+    // ── BLUETOOTH ────────────────────────────────────────────
+    function initBT() {
+        statusEl.innerText = "Conectando Nachimbong...";
+        try {
+            if (window.bridge) {
+                window.bridge.blePairingStart("");
+                statusEl.innerText = "Emparejando...";
+            } else if (window.webkit?.messageHandlers?.blePairingStart) {
+                window.webkit.messageHandlers.blePairingStart.postMessage("");
+                statusEl.innerText = "Emparejando (iOS)...";
+            } else {
+                statusEl.innerText = "⚠️ Bridge no disponible (solo funciona en la app).";
+            }
+        } catch(e) { statusEl.innerText = "Error BT: " + e.message; }
+    }
+
+    function resetDevice() {
+        statusEl.innerText = "Reiniciando Nachimbong...";
+        try {
+            const resetCmd = "8110,-";
+            if (window.bridge) {
+                window.bridge.bleSendCmdList(resetCmd);
+                setTimeout(() => { window.bridge.bleDisconnect(""); setTimeout(initBT, 2000); }, 500);
+            } else if (window.webkit?.messageHandlers?.bleSendCmdList) {
+                window.webkit.messageHandlers.bleSendCmdList.postMessage(resetCmd);
+                setTimeout(() => { window.webkit.messageHandlers.bleDisconnect?.postMessage(""); setTimeout(initBT, 2000); }, 500);
+            }
+            statusEl.innerText = "Reiniciando... reconectando en 2s";
+        } catch(e) { statusEl.innerText = "Error al reiniciar: " + e.message; }
+    }
+
+    // ── ENVÍO AL NACHIMBONG (PROTOCOLO ORIGINAL) ─────────────
+    async function transferOled() {
+        statusEl.innerText = "Preparando imagen...";
+        const imgData = ctx.getImageData(0, 0, 128, 128).data;
+        let oledBytes = new Uint8Array(2048);
+
+        for (let y = 0; y < 128; y++) {
+            for (let x = 0; x < 128; x++) {
+                const idx = (y * 128 + x) * 4;
+                if (imgData[idx] > 128) {
+                    const byteIdx = (Math.floor(y / 8) * 128) + x;
+                    oledBytes[byteIdx] |= (1 << (y % 8));
+                }
+            }
+        }
+
+        for (let part = 0; part < 16; part++) {
+            const chunk = oledBytes.slice(part * 128, (part + 1) * 128);
+            const hexData = Array.from(chunk).map(b => b.toString(16).padStart(2, '0')).join('');
+            const cmd = `810F00000000${part.toString(16).padStart(2, '0')}${hexData},-`;
+
+            try {
+                if (window.bridge) window.bridge.bleSendCmdList(cmd);
+                else if (window.webkit?.messageHandlers?.bleSendCmdList)
+                    window.webkit.messageHandlers.bleSendCmdList.postMessage(cmd);
+                statusEl.innerText = `Enviando: ${Math.round(((part + 1) / 16) * 100)}%`;
+                await new Promise(r => setTimeout(r, 150));
+            } catch(e) {
+                statusEl.innerText = "⚠️ Error en parte " + (part + 1);
+                return;
+            }
+        }
+        statusEl.innerText = "✅ ¡Enviado correctamente!";
+    }
+
+    // ── INIT ─────────────────────────────────────────────────
+    window.onload = () => {
+        renderEmojis();
+        const last = localStorage.getItem('last_oled_img');
+        if (last) {
+            const im = new Image();
+            im.onload = () => ctx.drawImage(im, 0, 0);
+            im.src = last;
+        } else {
+            clearCanvas();
+        }
+        setTimeout(initBT, 1000);
+    };
 </script>
 </body>
 </html>
