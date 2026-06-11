@@ -6,7 +6,6 @@
     <title>Nachimbong OLED Studio</title>
     <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Press+Start+2P&family=Dancing+Script:wght@700&family=Oswald:wght@700&family=Permanent+Marker&display=swap" rel="stylesheet">
     <style>
-        /* (mantengo tu CSS original, acortado aquí por brevedad visual) */
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background:#0a0a0a; color:#eee; padding:15px; min-height:100vh; display:flex; flex-direction:column; align-items:center; gap:10px;}
         h2{ color:#ed1c24; font-size:1.2rem; letter-spacing:2px;}
@@ -18,10 +17,11 @@
         button.main-btn{ flex:1; padding:13px; font-weight:bold; border-radius:25px; border:none; cursor:pointer; font-size:0.85rem;}
         #sendBtn{ background:#ed1c24; color:white;}
         #clearBtn{ background:#1a1a1a; color:#aaa; border:1px solid #333;}
+        #sendWolfBtn{ background:#5c8a00; color:white; border-radius:20px; padding:10px; }
         #status{ color:#888; font-size:0.78em; min-height:20px; text-align:center; padding:4px;}
-        /* extras para area GIF */
         .small { font-size:0.85rem; padding:8px; border-radius:8px; }
         textarea { width:100%; height:120px; border-radius:8px; background:#000; color:#ddd; border:1px solid #333; padding:8px; resize:vertical; }
+        #framesRow { display:flex; gap:6px; overflow:auto; padding-top:6px; }
     </style>
 </head>
 <body>
@@ -32,7 +32,6 @@
 <!-- Panel principal (texto / fuentes / emojis) -->
 <div class="panel">
     <div class="panel-title">✏️ Editor básico</div>
-    <!-- (tu UI original para texto, emojis, líneas, etc. iría aquí tal cual) -->
     <div style="font-size:0.9rem;color:#ddd">Usa el canvas para dibujar o aplica texto/emojis como antes.</div>
 </div>
 
@@ -52,7 +51,7 @@
 
     <div style="margin-top:8px;">
         <label style="font-size:0.85rem;color:#888">Vista previa de frames:</label>
-        <div id="framesRow" style="display:flex;gap:6px;overflow:auto;padding-top:6px;"></div>
+        <div id="framesRow"></div>
     </div>
 
     <div style="margin-top:8px;">
@@ -61,7 +60,7 @@
     </div>
 </div>
 
-<!-- Controles BLE / Envío -->
+<!-- CONTROLES -->
 <div class="controls">
     <div class="btn-row">
         <button class="main-btn" id="clearBtn" onclick="clearCanvas()">🧹 LIMPIAR</button>
@@ -71,14 +70,40 @@
         <button class="main-btn" id="reconnectBtn" onclick="initBT()">🔄 RECONECTAR</button>
         <button class="main-btn" id="resetDevBtn" onclick="resetDevice()">🔁 REINICIAR</button>
     </div>
+    <div style="width:100%; max-width:320px; margin-top:6px;">
+        <button id="sendWolfBtn" class="main-btn" onclick="sendMyDesign('wolfchan_mexa')">🖼️ ENVIAR WOLFCHAN</button>
+    </div>
     <div id="status">Iniciando...</div>
 </div>
 
-<!-- LIB: gifuct-js para parseo de GIFs -->
+<!-- gifuct-js -->
 <script src="https://unpkg.com/gifuct-js/dist/gifuct.min.js"></script>
 
 <script>
-/* ====== Helpers & canvas core (preservé la lógica original y agregué funciones GIF) ====== */
+/* ====== INJECT: tu diseño WOLFCHAN (no destructivo) ====== */
+window.MIS_DISENOS = window.MIS_DISENOS || {};
+window.MIS_DISENOS.wolfchan_mexa = [
+  [
+    "000000000006000000000C000000000000000000003F000000001F00000000000000000001FF000000003FE000000000000000000F838007C000787C00000000000000001E03800FC000701E00000000000000003C10C01FF000630F000000000000000038FC403FF80087C7000000000000000071FE007FFC009FE3C0000000",
+    "0000000073FE20FFFC008FF18000000000000000F3FF21FFFF018FF9C000000000000000E7FF07FFFF019FF9C000000000000001E7FF17FFFF011FF9E000000000000001CFFF9FFFFF033FFCE000000000000003CFFF9FFFFFC33FFCF0000000000000039FFFDFFFFFC63FFE70000000000000079FE7CFFFFFC679FE78000000",
+    "000000073F83CFFFFFC6707F38000000000000073F81FFFFFFFC607F3C000000000000073F01BFFFFFF0E03F380000000000000F3F01BFFFFFF0E03F1C0000000000000E7E00BFFFFFF0C01F9C0000000000000E7E00BFFFFFF1C01F9C0000000000000E7C00BFFFFFF1C00FDC0000000000000E7C007FFFFFFF800F9E000000",
+    "0000001E7C00FFFFFFFC800F9C0000000000001CF800FFFFFFFC800FDE0000000000001CF800FFFFFFFC0007CF0000000000001CF800FFFFFFFC0007CE0000000000003CF800FFFFFFFC0003C700000000000038F801FFFFFFFF0003C700000000000038F803FFFFFFFF0007CF00000000000039F00007FFFFC07803E7000000",
+    "00000039F00007FFFFC03003E7000000000000001FF8000000003FF803000000000000001FF8000000001FF0030000000000007FFFE0000000000FFFFC000000000000FFFFE0000000000FFFFC00000000001FFFFFE0000000000FFFFC30000000001FFFFFE0000000000FFFFFF000000000007FFFE7F000001FCFFFFC000000",
+    "00003FFFFFFFF800001FCFFFFFC0000000003F81FF9FFFFFFFFFF3FF03F0000000003FC1FF9FFFFFFFFFF3FF03F0000000003FFE019FFFFFFFFFF300FFF0000000001FFFDF9FFFFFFFFFF3FEFFF000000000199FFE8007FFFFC000FFFF1000000000188FFFFFFFFE3FFFFFFFFE1000000000060667FFF800003FFFACCC000000",
+    "0000060267FFFFFC1FFFFF94CC000000000000018999FFFFFFFFF31030000000000000000111FFFFFFFFF11000000000000000000060667FC44440C000400000000000000000003B800000000200000000000040000010110101000002000000000000F20000101101010000CF000000000000F20000000400000000CF000000",
+    "000000E7FE000000000000FFE700000000000067FE000000000180FFE7000000000000E7FFF9F800003FFFFFE7000000000001E7FFF9F800003FFFFFE7800000000001E7FFF9FFCFFFFFFFFFE7800000000001CFFFF9FFCFFFFFFFFFF3800000000001CFFFF9FFCFFFFFFFFFF3800000000001CFFFF8FFCFFFFFFFFFF3800000",
+    "000001CFFFFCFFCFFFFFFFFFF3800000000000CFFFFE7FCFFFFFFFFFF3800000000001CFFFFE3FCFFFFFFFFFF3800000000003CFFFFF1FC7FFFFFFFFF3C00000000003CFFFFF87E7FFFFFFFFF3C000000000039FFFFFE3F3FFFFFFFFF9C000000000039FFFFFF873FFFFFFFFF9C000000000039FFFFC1C07FFF83FFFF9C00000",
+    "0000039FFFE00707FFE007FFF9C000000000039FFFC3E1FFFF87C3FFF9C000000000039FFF9FF8FFFF1FF9FFF9C000000000039FFE3FFCFFFF3FFC7FF9C000000000039FFE7FFE7FFE3FFE3FF9C000000000039FFCFFFE7FFE7FFF3FF9C000000000039FFCFFFF3FFCFFFF1FF9C000000000039FF9FFFF3FFE7FFF9FF9C00000",
+    "0000039FF9FFFF3FFE7FFF9FF9C000000000039FF3FFFF3FFCFFFFCFF9C000000000039FF3FFFF9FF9FFFFE7F9C000000000039FF3C0079FFDE003CFF9C000000000039FF380039FFCC001CFF9C000000000039FE700039FF9C000E7F9C000000000039FE60FFFC003FFF067F9C000000000039FE7FFFF8001FFFFE7F9C00000",
+    "0000039FE7FFFF8000FFFFE7F9C000000000039FE7FFFF8001FFFFE7F9C000000000039FE7FFFF8001FFFFE7F9C000000000039FE7FFFF8001FFFFE7F9C000000000039FE7FFFF8000FFFFE7F9C000000000039FCFFFFF8001FFFFF3F9C000000000039FCFFFFFC003FFFFF9F9C00000000003801FFFFFE007FFFFF801C00000000003803FFFFFF81FFFFFFC01C00000",
+    "0000039FFFFFFFFFFFFFFFFFF9C00000000003CFFFC3FFFFFFFFE3FFF3C00000000003CFFFC1FCFFFF1FC1FFF3C00000000001CFFF81FC1FF83FC1FFF3800000000000CFFFC3FF0000FFC1FFF3800000000001E7FFC7FFE007FFE3FFE7800000000001E7FFFFFFFFFFFFFFFFE7800000000000F3FFFFFFFFFFFFFFFFC7000000",
+    "000000F3FFFFFFFFFFFFFFFFCF00000000000079FFFFFFFFFFFFFFFF9E000000000000787FFFFFFFFFFFFFFE1E0000000000003E3FFFFFFFFFFFFFFC7C0000000000001F8FFFFFFFFFFFFFF1FC0000000000000FC7FFFFFFFFFFFFE3F000000000000003F1FFFFFFFFFFFF8FC000000000000001F87FFFFFFFFFFE1F80000000",
+    "000000007E1FFFFFFFFFF87E00000000000000003F87FFFFFFFFE1FC00000000000000000FE1FFFFFFFF87F0000000000000000003F83FFFFFFC1FC0000000000000000000FE07FFFFE07F000000000000000000003FC03FFC03FC000000000000000000000FF800001FF00000000000000000000001FFC003FF800000000000",
+    "0000000000003FFFFFFC00000000000000000000000001FFFF8000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  ]
+];
+
+/* ====== Helpers & canvas core ====== */
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d', { willReadFrequently: true });
 const statusEl = document.getElementById('status');
@@ -86,7 +111,6 @@ const exportArea = document.getElementById('exportArea');
 let isDrawing = false;
 let selectedFont = "Arial";
 
-/* --- canvas dibujo y utilidades (tu lógica existente) --- */
 canvas.addEventListener('pointerdown', (e)=>{ isDrawing=true; draw(e); });
 window.addEventListener('pointerup', ()=>{ if(isDrawing){ isDrawing=false; saveCanvas(); }});
 canvas.addEventListener('pointermove', draw);
@@ -103,19 +127,16 @@ function draw(e){
 function clearCanvas(){ ctx.fillStyle="black"; ctx.fillRect(0,0,128,128); saveCanvas(); }
 function saveCanvas(){ try{ localStorage.setItem('last_oled_img', canvas.toDataURL()); }catch(e){} }
 
-/* --- BLE stubs (uso bridge nativo si existe) --- */
+/* --- BLE bridge helpers --- */
 function initBT(){ statusEl.innerText="Conectando Nachimbong..."; try{ if(window.bridge){ window.bridge.blePairingStart(""); statusEl.innerText="Emparejando..."; } else if(window.webkit?.messageHandlers?.blePairingStart){ window.webkit.messageHandlers.blePairingStart.postMessage(""); statusEl.innerText="Emparejando (iOS)..."; } else { statusEl.innerText="⚠️ Bridge no disponible (solo en app)."; } }catch(e){ statusEl.innerText="Error BT: "+e.message; } }
 function resetDevice(){ statusEl.innerText="Reiniciando Nachimbong..."; try{ const resetCmd="8110,-"; if(window.bridge){ window.bridge.bleSendCmdList(resetCmd); setTimeout(()=>{ window.bridge.bleDisconnect(""); setTimeout(initBT,2000); },500); } else if(window.webkit?.messageHandlers?.bleSendCmdList){ window.webkit.messageHandlers.bleSendCmdList.postMessage(resetCmd); setTimeout(()=>{ window.webkit.messageHandlers.bleDisconnect?.postMessage(""); setTimeout(initBT,2000); },500); } statusEl.innerText="Reiniciando... reconectando en 2s"; }catch(e){ statusEl.innerText="Error al reiniciar: "+e.message; } }
 
 /* ====== Conversion core: Image/Frame -> 2048 bytes -> 16 hex parts ====== */
 function frameImageDataToParts(imgData, w=128, h=128){
-    // imgData: Uint8ClampedArray RGBA length w*h*4
-    // produce array[16] of hex strings (each 128 bytes => 256 hex chars)
     const oled = new Uint8Array(2048);
     for(let y=0;y<h;y++){
         for(let x=0;x<w;x++){
             const idx = (y*w + x)*4;
-            // luminance threshold using red channel (simple)
             if(imgData[idx] > 128){
                 const byteIdx = (Math.floor(y/8)*128) + x;
                 oled[byteIdx] |= (1 << (y%8));
@@ -139,7 +160,7 @@ async function onParseGif(){
     try {
         const buf = await file.arrayBuffer();
         const gif = window.gifuct.parseGIF(buf);
-        const frames = window.gifuct.decompressFrames(gif, true); // [{dims, patch, ...}, ...]
+        const frames = window.gifuct.decompressFrames(gif, true);
         if(!frames || frames.length === 0){ statusEl.innerText = "No se pudieron extraer frames del GIF."; return; }
         statusEl.innerText = `GIF con ${frames.length} frames — procesando...`;
 
@@ -147,7 +168,6 @@ async function onParseGif(){
         const framesRow = document.getElementById('framesRow');
         framesRow.innerHTML = '';
 
-        // temp canvases
         const tmp = document.createElement('canvas');
         const tmpCtx = tmp.getContext('2d');
         tmp.width = frames[0].dims.width;
@@ -159,27 +179,21 @@ async function onParseGif(){
 
         for(let i=0;i<frames.length;i++){
             const f = frames[i];
-            // asegurar tamaño del temp segun frame
             if(tmp.width !== f.dims.width || tmp.height !== f.dims.height){ tmp.width = f.dims.width; tmp.height = f.dims.height; }
-            // f.patch es Uint8ClampedArray RGBA del frame
             const imageData = new ImageData(new Uint8ClampedArray(f.patch), f.dims.width, f.dims.height);
             tmpCtx.putImageData(imageData, 0, 0);
 
-            // escalar al canvas 128x128 (centrado y manteniendo aspect)
             scaleCtx.fillStyle = "black"; scaleCtx.fillRect(0,0,128,128);
-            // draw scaled (cover / contain) - mantengo aspect y centrar
             const sx = f.dims.width, sy = f.dims.height;
             const scale = Math.min(128/sx, 128/sy);
             const dw = Math.round(sx*scale), dh = Math.round(sy*scale);
             const dx = Math.round((128 - dw)/2), dy = Math.round((128 - dh)/2);
             scaleCtx.drawImage(tmp, 0,0, sx, sy, dx, dy, dw, dh);
 
-            // obtener pixels del 128x128 y convertir a partes
             const scaledImg = scaleCtx.getImageData(0,0,128,128).data;
             const parts = frameImageDataToParts(scaledImg, 128, 128);
             designFrames.push(parts);
 
-            // preview thumbnail
             const thumb = document.createElement('canvas');
             thumb.width = 64; thumb.height = 64;
             const tctx = thumb.getContext('2d');
@@ -187,11 +201,9 @@ async function onParseGif(){
             thumb.style.border = "1px solid #333"; thumb.style.marginRight = "6px";
             framesRow.appendChild(thumb);
 
-            // small delay to keep UI responsive if muchos frames
             await new Promise(r=>setTimeout(r,0));
         }
 
-        // guardar en MIS_DISENOS
         const name = (document.getElementById('designName').value || 'mi_gif').replace(/[^\w\-]/g,'_');
         window.MIS_DISENOS = window.MIS_DISENOS || {};
         window.MIS_DISENOS[name] = designFrames;
@@ -199,16 +211,11 @@ async function onParseGif(){
         document.getElementById('btnExport').disabled = false;
         document.getElementById('btnSendDesign').disabled = false;
 
-        // Volcar primer frame al canvas como preview
-        const firstHex = designFrames[0];
-        // reconvertir primer frame hex -> image para mostrar (opcional)
-        // simplemente dibujamos el scaled canvas (ya está en scaleCanvas)
         ctx.clearRect(0,0,128,128);
         ctx.drawImage(scaleCanvas, 0,0);
 
-        // preparar exportArea
-        exportArea.value = generateExportSnippet(name, designFrames);
-
+        document.getElementById('exportArea')?.value && (document.getElementById('exportArea').value = generateExportSnippet(name, designFrames));
+        document.getElementById('exportArea') && (document.getElementById('exportArea').value = generateExportSnippet(name, designFrames));
     } catch(err){
         console.error(err);
         statusEl.innerText = "Error al parsear GIF: " + (err.message || err);
@@ -217,8 +224,6 @@ async function onParseGif(){
 
 /* ====== Export snippet (JS ready to paste) ====== */
 function generateExportSnippet(name, framesArray){
-    // framesArray: array of frames, each is array[16] strings
-    // produce compact JS string
     const safeName = name.replace(/[^\w\-]/g,'_');
     const lines = [];
     lines.push("// Copia esto y pégalo en tu script principal (ej. app.js)");
@@ -234,8 +239,7 @@ function generateExportSnippet(name, framesArray){
     lines.push("];");
     return lines.join("\n");
 }
-
-function onExportJS(){ const name = document.getElementById('designName').value || 'mi_gif'; const obj = window.MIS_DISENOS?.[name.replace(/[^\w\-]/g,'_')]; if(!obj){ statusEl.innerText = "No hay diseño para exportar."; return; } exportArea.value = generateExportSnippet(name, obj); exportArea.select(); statusEl.innerText = "Snippet listo — cópialo y pégalo en tu JS."; }
+function onExportJS(){ const name = document.getElementById('designName').value || 'mi_gif'; const obj = window.MIS_DISENOS?.[name.replace(/[^\w\-]/g,'_')]; if(!obj){ statusEl.innerText = "No hay diseño para exportar."; return; } document.getElementById('exportArea').value = generateExportSnippet(name, obj); statusEl.innerText = "Snippet listo — cópialo y pégalo en tu JS."; }
 
 /* ====== Envío usando sendMyDesign (compatible con bridge nativo) ====== */
 async function sendMyDesign(name){
@@ -244,9 +248,9 @@ async function sendMyDesign(name){
     statusEl.innerText = `Enviando "${name}" (${design.length} frames)...`;
 
     const totalFrames = design.length;
-    for(let f=0; f<totalFrames; f++){
+    for(let f = 0; f < totalFrames; f++){
         const frame = design[f];
-        for(let p=0; p<16; p++){
+        for(let p = 0; p < 16; p++){
             const parteHex = frame[p] || "".padEnd(128*2, "0");
             const totalHex = totalFrames.toString(16).padStart(4,'0').toUpperCase();
             const frameHex = f.toString(16).padStart(4,'0').toUpperCase();
@@ -265,7 +269,6 @@ async function sendMyDesign(name){
         await new Promise(r=>setTimeout(r,120));
     }
 
-    // comando final (play)
     try{
         const playCmd = "810E01,-";
         if(window.bridge) window.bridge.bleSendCmdList(playCmd);
@@ -279,7 +282,7 @@ function onSendDesign(){
     sendMyDesign(name);
 }
 
-/* ====== canvas → enviar (imagen estática) (tu función original) ====== */
+/* ====== canvas → enviar (imagen estática) ====== */
 async function transferOled(){
     statusEl.innerText = "Preparando imagen...";
     const imgData = ctx.getImageData(0,0,128,128).data;
@@ -307,16 +310,14 @@ async function transferOled(){
             return;
         }
     }
-    // play
     try{ if(window.bridge) window.bridge.bleSendCmdList("810E01,-"); else if(window.webkit?.messageHandlers?.bleSendCmdList) window.webkit.messageHandlers.bleSendCmdList.postMessage("810E01,-"); }catch(e){}
     statusEl.innerText = "✅ ¡Enviado correctamente!";
 }
 
 /* ====== UI wiring + init ====== */
-document.getElementById('gifFile').addEventListener('change', ()=>{ document.getElementById('btnExport').disabled=true; document.getElementById('btnSendDesign').disabled=true; exportArea.value=''; document.getElementById('framesRow').innerHTML=''; });
+document.getElementById('gifFile').addEventListener('change', ()=>{ document.getElementById('btnExport').disabled=true; document.getElementById('btnSendDesign').disabled=true; document.getElementById('exportArea').value=''; document.getElementById('framesRow').innerHTML=''; });
 
 window.onload = ()=>{
-    // restaurar canvas si hay imagen guardada
     const last = localStorage.getItem('last_oled_img');
     if(last){ const im = new Image(); im.onload = ()=> ctx.drawImage(im,0,0); im.src = last; } else { clearCanvas(); }
     setTimeout(initBT, 1000);
