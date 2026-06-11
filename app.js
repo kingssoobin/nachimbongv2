@@ -1,4 +1,4 @@
-// app.fixed.js
+// app.js (versión actualizada — incluye animaciones, heurística de modos y bridge)
 (function(){
   // Safe element getters
   const canvas = document.getElementById('canvas');
