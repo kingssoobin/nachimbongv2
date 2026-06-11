@@ -202,3 +202,64 @@ window.onload = () => {
     }
     setTimeout(initBT, 1000);
 };
+
+
+// ---- Diseño: carga y render desde MIS_DISENOS (wolfchan, etc.) ----
+function hexToBytes(hex) {
+    if (!hex) return new Uint8Array();
+    const len = Math.floor(hex.length / 2);
+    const out = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+        out[i] = parseInt(hex.substr(i * 2, 2), 16);
+    }
+    return out;
+}
+
+function renderOledBytes(oledBytes) {
+    try {
+        // expect oledBytes.length === 2048
+        const w = 128, h = 128;
+        const img = ctx.createImageData(w, h);
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                const byteIdx = Math.floor(y / 8) * w + x;
+                const bit = (oledBytes[byteIdx] >> (y % 8)) & 1;
+                const i = (y * w + x) * 4;
+                const color = bit ? 255 : 0;
+                img.data[i] = color;
+                img.data[i + 1] = color;
+                img.data[i + 2] = color;
+                img.data[i + 3] = 255;
+            }
+        }
+        ctx.putImageData(img, 0, 0);
+        saveCanvas();
+    } catch (e) {
+        console.error('renderOledBytes error', e);
+        statusEl.innerText = 'Error al renderizar diseño';
+    }
+}
+
+function loadDesign(name) {
+    try {
+        if (!window.MIS_DISENOS || !window.MIS_DISENOS[name]) {
+            statusEl.innerText = 'Diseño no encontrado: ' + name;
+            return;
+        }
+        // MIS_DISENOS[name] is an array; take first item (array of hex chunks)
+        const entry = window.MIS_DISENOS[name][0];
+        if (!Array.isArray(entry)) { statusEl.innerText = 'Formato de diseño inválido'; return; }
+        const hex = entry.join('');
+        const bytes = hexToBytes(hex);
+        if (bytes.length !== 2048) {
+            console.warn('longitud de bytes inesperada', bytes.length);
+        }
+        renderOledBytes(bytes);
+        statusEl.innerText = 'Vista previa: ' + name;
+    } catch (e) {
+        console.error('loadDesign error', e);
+        statusEl.innerText = 'Error cargando diseño';
+    }
+}
+
+// ---- fin de diseño ----

@@ -48,7 +48,7 @@
             <button class="font-btn active" data-font="Arial" onclick="selectFont(this)">Arial</button>
             <button class="font-btn" data-font="serif" onclick="selectFont(this)">Serif</button>
             <button class="font-btn" data-font="'Press Start 2P'" onclick="selectFont(this)">Pixel</button>
-            <button class="font-btn" data-font="'Pacifico'" onclick="selectFont(this)">Paci</button>
+            <button class="font-btn" data-font="'Pacifico'" onclick="selectFont(this)">Pacifico</button>
         </div>
 
         <div class="size-row" style="margin-top:15px">
@@ -63,7 +63,7 @@
         <h3>😀 Emojis</h3>
         <div class="input-group">
             <button class="btn-sec emoji-tab active" onclick="showEmojiCat('fav', this)">⭐</button>
-            <button class="btn-sec emoji-tab" onclick="showEmojiCat('faces', this)">😀</button>
+            <button class="btn-sec emoji-tab" onclick="showEmojiCat('faces', this)">🙂</button>
             <button class="btn-sec emoji-tab" onclick="showEmojiCat('nature', this)">🌿</button>
         </div>
         <div class="emoji-grid" id="emojiGrid" style="margin-top:10px"></div>
@@ -71,6 +71,7 @@
 
     <div class="send-card">
         <button id="sendBtn" class="btn-main glow" onclick="transferOled()">📡 Enviar al Nachimbong</button>
+        <button id="wolfBtn" class="btn-sec" onclick="loadDesign('wolfchan_mexa')" style="margin-top:10px; width:100%">Wolfchan Mexa</button>
         <button class="btn-sec" onclick="initBT()" style="margin-top:10px; width:100%">🔄 Reconectar Bluetooth</button>
         <div id="status" class="console-log" style="margin-top:15px">Listo para conectar...</div>
     </div>
@@ -78,6 +79,9 @@
 
 <footer>SKZ NACHIMBONG V2 • OLED STUDIO</footer>
 
+<!-- diseño incorporado -->
+<script src="images/wolfchan_mexa.js"></script>
+<!-- app logic -->
 <script src="app.js"></script>
 </body>
 </html>
