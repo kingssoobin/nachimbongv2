@@ -1,5 +1,4 @@
 
-// wolfchan_mexa_fixed.js
 const MIS_DISENOS = {
   "wolfchan_mexa": [
     [
