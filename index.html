@@ -1,116 +1,263 @@
-<!-- PANEL DE DIAGNÓSTICO: enviar partes de prueba -->
-<div id="diagPanel" style="width:100%;max-width:360px;margin:12px auto;background:#111;border:1px solid #222;border-radius:10px;padding:8px;color:#ddd;">
-  <div style="font-size:0.85rem;margin-bottom:8px;">🔧 Diagnóstico BLE / formato</div>
-  <div style="display:flex;gap:6px;flex-wrap:wrap;">
-    <button onclick="diag_sendPart(0)" class="main-btn small">Enviar parte 0</button>
-    <button onclick="diag_sendPart(1)" class="main-btn small">Enviar parte 1</button>
-    <button onclick="diag_sendPart(15)" class="main-btn small">Enviar parte 15</button>
-    <button onclick="diag_sendAllWhite('normal')" class="main-btn small">Todas blancas (normal)</button>
-    <button onclick="diag_sendAllWhite('reverse')" class="main-btn small">Todas blancas (reverse)</button>
-    <button onclick="diag_sendAllWhite('swapHeader')" class="main-btn small">Todas blancas (swapHdr)</button>
-    <button onclick="diag_sendAllWhite('bitFlip')" class="main-btn small">Todas blancas (bitFlip)</button>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <title>Nachimbong OLED Studio — Envío compatible</title>
+    <style>
+        *{box-sizing:border-box}
+        body{font-family:system-ui,Segoe UI,Roboto,-apple-system;background:#0b0b0b;color:#eee;padding:12px;display:flex;flex-direction:column;align-items:center;gap:10px}
+        .panel{background:#111;border:1px solid #222;border-radius:10px;padding:10px;width:100%;max-width:420px}
+        button{padding:10px 12px;border-radius:10px;border:none;background:#ed1c24;color:#fff;cursor:pointer}
+        select,input,textarea{width:100%;padding:8px;border-radius:8px;border:1px solid #333;background:#000;color:#ddd}
+        #canvas{image-rendering:pixelated;border:2px solid #ed1c24;background:#000;width:256px;height:256px}
+        .muted{color:#999;font-size:0.9em}
+        .row{display:flex;gap:8px}
+        .row > *{flex:1}
+        #status{min-height:26px;color:#bdbdbd;font-size:0.95em}
+    </style>
+</head>
+<body>
+  <h3>Nachimbong OLED Studio — Envío foto custom</h3>
+
+  <canvas id="canvas" width="128" height="128"></canvas>
+
+  <div class="panel">
+    <div style="margin-bottom:8px" class="muted">Diseño cargado: <strong>wolfchan_mexa</strong></div>
+
+    <label class="muted">Modo de envío</label>
+    <select id="sendMode">
+      <option value="normal">Normal (total=frames, frame=index, parts 0→15)</option>
+      <option value="reverse">Reverse (partes 15→0)</option>
+      <option value="swapHeader">SwapHeader (intercambia total<->frame)</option>
+      <option value="bitFlip">BitFlip (invierte bits dentro de cada byte)</option>
+      <option value="autoTry">Auto-Try (prueba Normal → Reverse → SwapHeader)</option>
+    </select>
+
+    <label class="muted" style="margin-top:8px">Delay entre partes (ms)</label>
+    <input id="partDelay" type="number" value="140" />
+
+    <div style="margin-top:10px" class="row">
+      <button id="btnSend" onclick="startSend()">🖼️ ENVIAR WOLFCHAN</button>
+      <button style="background:#3a3a3a" onclick="resetDevice()">🔁 REINICIAR</button>
+    </div>
+
+    <div id="status" style="margin-top:8px">Estado: esperando acción...</div>
+
+    <div style="margin-top:10px">
+      <label class="muted">Registro (console también)</label>
+      <textarea id="log" readonly style="height:120px"></textarea>
+    </div>
   </div>
-  <div id="diagLog" style="font-size:0.8rem;color:#aaa;margin-top:8px;min-height:28px;">Estado diagnóstico...</div>
-</div>
 
 <script>
-/*
-  Funciones de diagnóstico para enviar patrones sencillos y probar formato.
-  - diag_sendPart(n): envía la parte n con todos los bytes = 0xFF (debería encender la franja correspondiente).
-  - diag_sendAllWhite(mode): envía todas las partes con variantes:
-      - "normal": encabezado 810F total=0001 frame=0000 part=pp
-      - "reverse": envía partes en orden 15..0 (para ver si el orden esperado está invertido)
-      - "swapHeader": prueba encabezado con frame/total intercambiados (810F frame total ...)
-      - "bitFlip": invierte bits dentro de cada byte (por si LSB/MSB esperado distinto)
-  Observa la pantalla y sube foto o dime qué zona se iluminó.
-*/
+/* ====== INJECT: tu diseño WOLFCHAN (no destructivo) ====== */
+window.MIS_DISENOS = window.MIS_DISENOS || {};
+window.MIS_DISENOS.wolfchan_mexa = [
+  [
+    "000000000006000000000C000000000000000000003F000000001F00000000000000000001FF000000003FE000000000000000000F838007C000787C00000000000000001E03800FC000701E00000000000000003C10C01FF000630F000000000000000038FC403FF80087C7000000000000000071FE007FFC009FE3C0000000",
+    "0000000073FE20FFFC008FF18000000000000000F3FF21FFFF018FF9C000000000000000E7FF07FFFF019FF9C000000000000001E7FF17FFFF011FF9E000000000000001CFFF9FFFFF033FFCE000000000000003CFFF9FFFFFC33FFCF0000000000000039FFFDFFFFFC63FFE70000000000000079FE7CFFFFFC679FE78000000",
+    "000000073F83CFFFFFC6707F38000000000000073F81FFFFFFFC607F3C000000000000073F01BFFFFFF0E03F380000000000000F3F01BFFFFFF0E03F1C0000000000000E7E00BFFFFFF0C01F9C0000000000000E7E00BFFFFFF1C01F9C0000000000000E7C00BFFFFFF1C00FDC0000000000000E7C007FFFFFFF800F9E000000",
+    "0000001E7C00FFFFFFFC800F9C0000000000001CF800FFFFFFFC800FDE0000000000001CF800FFFFFFFC0007CF0000000000001CF800FFFFFFFC0007CE0000000000003CF800FFFFFFFC0003C700000000000038F801FFFFFFFF0003C700000000000038F803FFFFFFFF0007CF00000000000039F00007FFFFC07803E7000000",
+    "00000039F00007FFFFC03003E7000000000000001FF8000000003FF803000000000000001FF8000000001FF0030000000000007FFFE0000000000FFFFC000000000000FFFFE0000000000FFFFC00000000001FFFFFE0000000000FFFFC30000000001FFFFFE0000000000FFFFFF000000000007FFFE7F000001FCFFFFC000000",
+    "00003FFFFFFFF800001FCFFFFFC0000000003F81FF9FFFFFFFFFF3FF03F0000000003FC1FF9FFFFFFFFFF3FF03F0000000003FFE019FFFFFFFFFF300FFF0000000001FFFDF9FFFFFFFFFF3FEFFF000000000199FFE8007FFFFC000FFFF1000000000188FFFFFFFFE3FFFFFFFFE1000000000060667FFF800003FFFACCC000000",
+    "0000060267FFFFFC1FFFFF94CC000000000000018999FFFFFFFFF31030000000000000000111FFFFFFFFF11000000000000000000060667FC44440C000400000000000000000003B800000000200000000000040000010110101000002000000000000F20000101101010000CF000000000000F20000000400000000CF000000",
+    "000000E7FE000000000000FFE700000000000067FE000000000180FFE7000000000000E7FFF9F800003FFFFFE7000000000001E7FFF9F800003FFFFFE7800000000001E7FFF9FFCFFFFFFFFFE7800000000001CFFFF9FFCFFFFFFFFFF3800000000001CFFFF9FFCFFFFFFFFFF3800000000001CFFFF8FFCFFFFFFFFFF3800000",
+    "000001CFFFFCFFCFFFFFFFFFF3800000000000CFFFFE7FCFFFFFFFFFF3800000000001CFFFFE3FCFFFFFFFFFF3800000000003CFFFFF1FC7FFFFFFFFF3C00000000003CFFFFF87E7FFFFFFFFF3C000000000039FFFFFE3F3FFFFFFFFF9C000000000039FFFFFF873FFFFFFFFF9C000000000039FFFFC1C07FFF83FFFF9C00000",
+    "0000039FFFE00707FFE007FFF9C000000000039FFFC3E1FFFF87C3FFF9C000000000039FFF9FF8FFFF1FF9FFF9C000000000039FFE3FFCFFFF3FFC7FF9C000000000039FFE7FFE7FFE3FFE3FF9C000000000039FFCFFFE7FFE7FFF3FF9C000000000039FFCFFFF3FFCFFFF1FF9C000000000039FF9FFFF3FFE7FFF9FF9C00000",
+    "0000039FF9FFFF3FFE7FFF9FF9C000000000039FF3FFFF3FFCFFFFCFF9C000000000039FF3FFFF9FF9FFFFE7F9C000000000039FF3C0079FFDE003CFF9C000000000039FF380039FFCC001CFF9C000000000039FE700039FF9C000E7F9C000000000039FE60FFFC003FFF067F9C000000000039FE7FFFF8001FFFFE7F9C00000",
+    "0000039FE7FFFF8000FFFFE7F9C000000000039FE7FFFF8001FFFFE7F9C000000000039FE7FFFF8001FFFFE7F9C000000000039FE7FFFF8001FFFFE7F9C000000000039FE7FFFF8000FFFFE7F9C000000000039FCFFFFF8001FFFFF3F9C000000000039FCFFFFFC003FFFFF9F9C00000000003801FFFFFE007FFFFF801C00000000003803FFFFFF81FFFFFFC01C00000",
+    "0000039FFFFFFFFFFFFFFFFFF9C00000000003CFFFC3FFFFFFFFE3FFF3C00000000003CFFFC1FCFFFF1FC1FFF3C00000000001CFFF81FC1FF83FC1FFF3800000000000CFFFC3FF0000FFC1FFF3800000000001E7FFC7FFE007FFE3FFE7800000000001E7FFFFFFFFFFFFFFFFE7800000000000F3FFFFFFFFFFFFFFFFC7000000",
+    "000000F3FFFFFFFFFFFFFFFFCF00000000000079FFFFFFFFFFFFFFFF9E000000000000787FFFFFFFFFFFFFFE1E0000000000003E3FFFFFFFFFFFFFFC7C0000000000001F8FFFFFFFFFFFFFF1FC0000000000000FC7FFFFFFFFFFFFE3F000000000000003F1FFFFFFFFFFFF8FC000000000000001F87FFFFFFFFFFE1F80000000",
+    "000000007E1FFFFFFFFFF87E00000000000000003F87FFFFFFFFE1FC00000000000000000FE1FFFFFFFF87F0000000000000000003F83FFFFFFC1FC0000000000000000000FE07FFFFE07F000000000000000000003FC03FFC03FC000000000000000000000FF800001FF00000000000000000000001FFC003FF800000000000",
+    "0000000000003FFFFFFC00000000000000000000000001FFFF8000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  ]
+];
 
-function logDiag(txt){
-  const el = document.getElementById('diagLog');
-  el.innerText = txt;
-  console.log('[DIAG]', txt);
+/* ====== Utilidades y canvas (mínimas) ====== */
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const statusEl = document.getElementById('status');
+const logEl = document.getElementById('log');
+function log(msg){ logEl.value = (new Date()).toLocaleTimeString() + ' — ' + msg + '\n' + logEl.value; console.log(msg) }
+
+/* Dibujar una previsualización simple del primer frame */
+function renderPreviewFromHexParts(parts){
+  try{
+    const img = ctx.createImageData(128,128);
+    // reconstruir a partir de partes de 128 bytes (little bit mapping como en frameImageDataToParts invocable inverso)
+    const oled = new Uint8Array(2048);
+    for(let p=0;p<parts.length && p<16;p++){
+      const hex = parts[p];
+      for(let i=0;i<128;i++){
+        const b = parseInt(hex.substr(i*2,2),16);
+        oled[p*128 + i] = b;
+      }
+    }
+    // convertir a RGBA
+    for(let y=0;y<128;y++){
+      for(let x=0;x<128;x++){
+        const byteIdx = Math.floor(y/8)*128 + x;
+        const bit = (oled[byteIdx] >> (y%8)) & 1;
+        const dst = (y*128 + x)*4;
+        const v = bit ? 255 : 0;
+        img.data[dst] = img.data[dst+1] = img.data[dst+2] = v;
+        img.data[dst+3] = 255;
+      }
+    }
+    ctx.putImageData(img,0,0);
+  }catch(e){ console.error(e) }
 }
+renderPreviewFromHexParts(window.MIS_DISENOS?.wolfchan_mexa?.[0] || []);
 
-function sendCmdRaw(cmd){
-  // Envía al bridge (o al webkit handler). Muestra en consola el cmd.
-  console.log('CMD ->', cmd.slice(0,80)+'...'); // trunca para no saturar
+/* ====== Helpers bridge ====== */
+function sendCmd(cmd){
+  log('Enviar: ' + cmd.slice(0,80) + (cmd.length>80 ? '...' : ''));
   if(window.bridge && typeof window.bridge.bleSendCmdList === 'function'){
-    window.bridge.bleSendCmdList(cmd);
-    return true;
-  } else if(window.webkit?.messageHandlers?.bleSendCmdList){
-    window.webkit.messageHandlers.bleSendCmdList.postMessage(cmd);
-    return true;
-  } else {
-    logDiag('Bridge no disponible. Ejecuta esto dentro de la app nativa.');
-    return false;
+    try{ window.bridge.bleSendCmdList(cmd); return true }catch(e){ log('Bridge error: ' + e) ; return false }
   }
+  if(window.webkit?.messageHandlers?.bleSendCmdList){
+    try{ window.webkit.messageHandlers.bleSendCmdList.postMessage(cmd); return true }catch(e){ log('webkit error: ' + e); return false }
+  }
+  log('Bridge no disponible: corre esto dentro de la app nativa.');
+  return false;
 }
 
-function makeFullPartHex(bitFlip=false){
-  // Crea 128 bytes de 0xFF (todo blanco). Devuelve string hex (256 chars)
-  const arr = new Array(128).fill(0xFF);
-  if(bitFlip){
-    // invertir bits en cada byte (ej: 0xFF -> 0xFF igual, pero útil si pruebas otros valores)
-    for(let i=0;i<arr.length;i++){
-      let b = arr[i];
-      let rev = 0;
-      for(let j=0;j<8;j++) rev = (rev<<1) | ((b>>j)&1);
-      arr[i] = rev;
+function resetDevice(){
+  log('Enviando comando de reset (8110,-)');
+  try{
+    if(window.bridge) window.bridge.bleSendCmdList("8110,-");
+    else if(window.webkit?.messageHandlers?.bleSendCmdList) window.webkit.messageHandlers.bleSendCmdList.postMessage("8110,-");
+    statusEl.innerText = 'Reset enviado';
+  }catch(e){ statusEl.innerText = 'Error reset: ' + e; }
+}
+
+/* ====== Manipuladores de bits / util ====== */
+function flipByteBits(b){
+  let r = 0;
+  for(let i=0;i<8;i++) r = (r<<1) | ((b>>i)&1);
+  return r & 0xFF;
+}
+function partsFromOledBytes(oledBytes, bitFlip=false){
+  const parts = [];
+  for(let p=0;p<16;p++){
+    const slice = oledBytes.slice(p*128, (p+1)*128);
+    if(bitFlip){
+      for(let i=0;i<slice.length;i++) slice[i] = flipByteBits(slice[i]);
+    }
+    parts.push(Array.from(slice).map(b=>b.toString(16).padStart(2,'0')).join(''));
+  }
+  return parts;
+}
+
+/* ====== Construir payload desde canvas RGBA -> 2048 bytes -> partes ====== */
+function canvasToOledParts(bitFlip=false){
+  const img = ctx.getImageData(0,0,128,128).data;
+  const oled = new Uint8Array(2048);
+  for(let y=0;y<128;y++){
+    for(let x=0;x<128;x++){
+      const idx = (y*128 + x)*4;
+      if(img[idx] > 128){ // umbral simple
+        const byteIdx = Math.floor(y/8)*128 + x;
+        oled[byteIdx] |= (1 << (y%8));
+      }
     }
   }
-  return arr.map(b=>b.toString(16).padStart(2,'0')).join('');
+  return partsFromOledBytes(oled, bitFlip);
 }
 
-async function diag_sendPart(partIndex){
-  logDiag('Enviando parte ' + partIndex + ' (full white)...');
-  const hex = makeFullPartHex(false);
-  // header: 810F + total(0001) + frame(0000) + part(2 hex)
-  const totalHex = '0001';
-  const frameHex = '0000';
-  const partHex = partIndex.toString(16).padStart(2,'0').toUpperCase();
-  const cmd = `810F${totalHex}${frameHex}${partHex}${hex},-`;
-  const ok = sendCmdRaw(cmd);
-  if(ok) logDiag('Comando enviado: parte ' + partIndex);
+/* ====== Envío robusto con variantes del protocolo ====== */
+async function sendMyDesignVariant(name, mode='normal', partDelay=140){
+  const design = window.MIS_DISENOS?.[name];
+  if(!design){ statusEl.innerText = 'Diseño no encontrado: ' + name; log('Diseño no encontrado'); return false; }
+  statusEl.innerText = 'Enviando diseño "'+name+'" modo:'+mode;
+  log('Inicio envío — modo: ' + mode);
+
+  const totalFrames = design.length;
+  // iterar frames (si el diseño tiene >1 frames, respetamos eso)
+  for(let f=0; f<totalFrames; f++){
+    const frameParts = design[f]; // array[16] hex strings
+    // decide orden de partes
+    let order = [...Array(16).keys()];
+    if(mode === 'reverse') order = order.reverse();
+    // construccion de encabezados
+    const totalHex = totalFrames.toString(16).padStart(4,'0').toUpperCase();
+    const frameHex = f.toString(16).padStart(4,'0').toUpperCase();
+
+    for(let i=0;i<order.length;i++){
+      const p = order[i];
+      let payloadHex = frameParts[p] || ''.padEnd(128*2,'0');
+
+      // si mode bitFlip: debemos invertir bits de cada byte antes de hex
+      if(mode === 'bitFlip'){
+        // convertir payloadHex -> bytes -> flip -> back to hex
+        const buf = new Uint8Array(128);
+        for(let j=0;j<128;j++) buf[j] = parseInt(payloadHex.substr(j*2,2),16) || 0;
+        for(let j=0;j<128;j++) buf[j] = flipByteBits(buf[j]);
+        payloadHex = Array.from(buf).map(b=>b.toString(16).padStart(2,'0')).join('');
+      }
+
+      // elegir header segun modo swapHeader o normal
+      let cmdHeader;
+      if(mode === 'swapHeader'){
+        // 810F + frameHex + totalHex + part
+        const partHex = p.toString(16).padStart(2,'0').toUpperCase();
+        cmdHeader = `810F${frameHex}${totalHex}${partHex}`;
+      } else {
+        // normal: 810F + totalHex + frameHex + part
+        const partHex = p.toString(16).padStart(2,'0').toUpperCase();
+        cmdHeader = `810F${totalHex}${frameHex}${partHex}`;
+      }
+
+      const cmd = cmdHeader + payloadHex + ",-";
+      const ok = sendCmd(cmd);
+      if(!ok){ statusEl.innerText = 'Bridge no disponible'; return false; }
+      statusEl.innerText = `Enviando frame ${f+1}/${totalFrames} parte ${p+1}/16`;
+      await new Promise(r=>setTimeout(r, partDelay));
+    }
+    // pequeño delay entre frames
+    await new Promise(r=>setTimeout(r, partDelay + 60));
+  }
+
+  // comando play (final)
+  sendCmd("810E01,-");
+  statusEl.innerText = 'Envío terminado — comando PLAY enviado';
+  log('Play enviado');
+  return true;
 }
 
-async function diag_sendAllWhite(mode){
-  logDiag('Modo diagnóstico: ' + mode);
-  const hex = makeFullPartHex(mode==='bitFlip');
-  const totalHex_normal = '0001';
-  const frameHex_normal = '0000';
-  const totalHex_alt = '0010'; // pruebo como ejemplo (16)
-  const frameHex_alt = '0000';
-  let order = [...Array(16).keys()];
-  if(mode === 'reverse') order = order.reverse();
-  // si swapHeader: mandamos header 810F frameHex + totalHex (prueba)
-  // if mode bitFlip already handled in hex
-  for(let i=0;i<order.length;i++){
-    const p = order[i];
-    let cmd;
-    if(mode === 'swapHeader'){
-      // prueba: 810F + frame + total + part + payload
-      const frame = totalHex_normal; // intercambiados
-      const total = frameHex_normal;
-      const partHex = p.toString(16).padStart(2,'0').toUpperCase();
-      cmd = `810F${frame}${total}${partHex}${hex},-`;
-    } else if(mode === 'normal' || mode === 'bitFlip' || mode === 'reverse'){
-      // normal header
-      const partHex = p.toString(16).padStart(2,'0').toUpperCase();
-      // Para probar otra hipótesis (que el dispositivo trate "total" como 16),
-      // cuando mode === 'reverse' también pruebo enviar total=0010 (16) en paralelo:
-      const totalHex = (mode==='reverse') ? '0010' : totalHex_normal;
-      cmd = `810F${totalHex}${frameHex_normal}${partHex}${hex},-`;
+/* ====== Auto-try: intenta varias variantes en secuencia (para encontrar la compatible) ====== */
+async function sendMyDesignAuto(name){
+  const delay = parseInt(document.getElementById('partDelay').value) || 140;
+  const modes = ['normal','reverse','swapHeader','bitFlip'];
+  for(let m of modes){
+    log('AutoTry: intentando modo ' + m);
+    await sendMyDesignVariant(name, m, delay);
+    // esperar unos segundos para que puedas observar el resultado en el stick
+    await new Promise(r=>setTimeout(r, 2200));
+  }
+  log('AutoTry completo');
+}
+
+/* ====== Inicio del envío según selector ====== */
+async function startSend(){
+  const mode = document.getElementById('sendMode').value;
+  const delay = parseInt(document.getElementById('partDelay').value) || 140;
+  document.getElementById('btnSend').disabled = true;
+  try{
+    if(mode === 'autoTry'){
+      await sendMyDesignAuto('wolfchan_mexa');
     } else {
-      cmd = `810F${totalHex_normal}${frameHex_normal}${p.toString(16).padStart(2,'0')}${hex},-`;
+      await sendMyDesignVariant('wolfchan_mexa', mode, delay);
     }
-
-    const ok = sendCmdRaw(cmd);
-    if(!ok) return;
-    // esperar un poco entre partes
-    await new Promise(r=>setTimeout(r, 180));
+    statusEl.innerText = 'Operación finalizada';
+  }catch(e){
+    statusEl.innerText = 'Error envío: ' + e;
+    log('Error: ' + e);
+  }finally{
+    document.getElementById('btnSend').disabled = false;
   }
-  // play final
-  sendCmdRaw("810E01,-");
-  logDiag('Secuencia de prueba enviada ('+mode+').');
 }
 </script>
+</body>
+</html>
