@@ -1,4 +1,4 @@
-// app.js (versión actualizada — incluye animaciones, heurística de modos y bridge)
+// app.js (versión corregida: animaciones, heurística de modos y bridge)
 (function(){
   // Safe element getters
   const canvas = document.getElementById('canvas');
@@ -124,7 +124,7 @@
   function clearCanvas(){ ctx.fillStyle = 'black'; ctx.fillRect(0,0,128,128); saveCanvas(); }
   function saveCanvas(){ try{ localStorage.setItem('last_oled_img', canvas.toDataURL()); }catch(e){} }
 
-  // BLUETOOTH helpers (no cambios respecto a tu versión)
+  // BLUETOOTH helpers (bridge)
   function initBT(){
     statusEl.innerText = 'Conectando Nachimbong...';
     try{
@@ -153,7 +153,7 @@
     }catch(e){ statusEl.innerText = 'Error al reiniciar: ' + (e && e.message); }
   }
 
-  // TRANSFER to NACHIMBONG: SSD1306 page-byte format (sin cambios)
+  // TRANSFER to NACHIMBONG: SSD1306 page-byte format
   async function transferOled(){
     statusEl.innerText = 'Preparando imagen...';
     const imgData = ctx.getImageData(0,0,128,128).data;
@@ -163,6 +163,7 @@
       for(let x=0;x<128;x++){
         const idx = (y*128 + x) * 4;
         const bright = imgData[idx];
+        // bright > 128 -> white; adjust if your data is inverse.
         if(bright > 128){
           const byteIdx = Math.floor(y/8) * 128 + x;
           oledBytes[byteIdx] |= (1 << (y % 8));
@@ -185,7 +186,7 @@
     statusEl.innerText = '✅ ¡Enviado correctamente!';
   }
 
-  // --- Helpers para soportar diseños y animaciones desde MIS_DISENOS / MIS_ANIMATIONS ---
+  // --- Helpers para diseños/animaciones ---
   function padTo2048Bytes(hex) {
     if (!hex) return '00'.repeat(2048);
     const cleaned = String(hex).replace(/[^0-9A-Fa-f]/g,'');
@@ -203,7 +204,7 @@
     return out;
   }
 
-  // Conteo rápido de píxeles encendidos para heurística
+  // Conteo rápido de píxeles encendidos para heurística (incluye modo 'rows' y 'invert')
   function countLitPixels(bytes, mode){
     const w = 128, h = 128;
     let count = 0;
@@ -220,6 +221,9 @@
           } else if(mode === 'transpose'){
             const byteIdx = Math.floor(x/8) * h + y;
             bit = (bytes[byteIdx] >> (x % 8)) & 1;
+          } else if(mode === 'rows'){
+            const byteIdx = y * (w/8) + Math.floor(x/8);
+            bit = (bytes[byteIdx] >> (7 - (x % 8))) & 1;
           } else if(mode === 'invert'){
             const byteIdx = Math.floor(y/8) * w + x;
             bit = ((bytes[byteIdx] >> (y % 8)) & 1) ? 0 : 1;
@@ -235,12 +239,12 @@
     renderOledBytesVariant(bytes, 'standard');
   }
 
-function renderOledBytesVariant(bytes, mode){
+  function renderOledBytesVariant(bytes, mode){
     try{
       const w = 128, h = 128;
       const img = ctx.createImageData(w,h);
-      ctx.fillStyle = 'black';
-      ctx.fillRect(0,0,128,128); // Limpiar fondo antes
+      // fill background black (img already zeroed, but keep for clarity)
+      for (let i=0;i<img.data.length;i+=4){ img.data[i]=0; img.data[i+1]=0; img.data[i+2]=0; img.data[i+3]=255; }
 
       for(let y=0; y<h; y++){
         for(let x=0; x<w; x++){
@@ -250,23 +254,23 @@ function renderOledBytesVariant(bytes, mode){
               // Modo SSD1306 (Páginas verticales)
               const byteIdx = Math.floor(y/8) * w + x;
               bit = (bytes[byteIdx] >> (y % 8)) & 1;
-            } 
-            else if(mode === 'rows') {
-              // Modo Horizontal (Byte seguido de Byte por fila)
+            } else if(mode === 'rows') {
+              // Modo Horizontal (bytes por fila)
               const byteIdx = y * (w/8) + Math.floor(x/8);
               bit = (bytes[byteIdx] >> (7 - (x % 8))) & 1;
-            }
-            else if(mode === 'transpose') {
-              // Modo Transpuesto (Columnas)
+            } else if(mode === 'transpose') {
+              // Modo transpuesto
               const byteIdx = Math.floor(x/8) * h + y;
               bit = (bytes[byteIdx] >> (x % 8)) & 1;
-            }
-            else if(mode === 'revbit') {
+            } else if(mode === 'revbit') {
               const byteIdx = Math.floor(y/8) * w + x;
               bit = (bytes[byteIdx] >> (7 - (y % 8))) & 1;
+            } else if(mode === 'invert') {
+              const byteIdx = Math.floor(y/8) * w + x;
+              bit = ((bytes[byteIdx] >> (y % 8)) & 1) ? 0 : 1;
             }
           } catch(e) { bit = 0; }
-          
+
           const i = (y*w + x) * 4;
           const color = bit ? 255 : 0;
           img.data[i] = img.data[i+1] = img.data[i+2] = color;
@@ -275,38 +279,83 @@ function renderOledBytesVariant(bytes, mode){
       }
       ctx.putImageData(img, 0, 0);
       saveCanvas();
-    } catch(e) { 
-      statusEl.innerText = 'Error render: ' + mode; 
+    } catch(e) {
+      statusEl.innerText = 'Error render: ' + mode;
+      console.error('renderOledBytesVariant error', e);
     }
   }
 
-  // --- Robust extraction of frames from MIS_DISENOS and MIS_ANIMATIONS ---
+  // --- Flatten helpers + preview player ---
+  function flattenToString(v) {
+    if (Array.isArray(v)) return v.map(flattenToString).join('');
+    return String(v ?? '');
+  }
+
+  let lastFrames = []; // array of hex strings (each frame = 2048 bytes = 4096 hex chars)
+  let lastFramesChunks = null;
+  let previewTimer = null;
+  let previewIdx = 0;
+  let previewMode = 'standard';
+
+  function stopPreview() {
+    if (previewTimer) {
+      clearInterval(previewTimer);
+      previewTimer = null;
+    }
+  }
+
+  function startPreview(framesHex, mode = 'standard', fps = 10) {
+    stopPreview();
+
+    if (!framesHex || framesHex.length === 0) return;
+
+    previewMode = mode;
+    previewIdx = 0;
+
+    const delay = Math.max(20, Math.round(1000 / fps));
+
+    const renderCurrent = () => {
+      const hex = framesHex[previewIdx];
+      const bytes = hexToBytes(hex);
+      renderOledBytesVariant(bytes, previewMode);
+
+      statusEl.innerText =
+        `Vista previa: frame ${previewIdx + 1}/${framesHex.length} (${fps} FPS, modo: ${previewMode})`;
+
+      previewIdx = (previewIdx + 1) % framesHex.length;
+    };
+
+    renderCurrent();
+
+    if (framesHex.length > 1) {
+      previewTimer = setInterval(renderCurrent, delay);
+    }
+  }
+
+  // --- Extraction from MIS_DISENOS / MIS_ANIMATIONS ---
   function getFramesFromMIS_DISENOS(name) {
     if (!window.MIS_DISENOS || !window.MIS_DISENOS[name]) return null;
     const entry = window.MIS_DISENOS[name];
 
-    // Case A: entry is [ frameArr0, frameArr1, ... ] where frameArr is array of chunk-strings
+    // If entry is array of arrays (each frame as chunks)
     if (Array.isArray(entry) && entry.length > 0 && Array.isArray(entry[0]) && typeof entry[0][0] === 'string') {
       return entry.map(frameArr => padTo2048Bytes(frameArr.join('')));
     }
 
-    // Case B: legacy single-frame as array of chunk strings: [ chunk0, chunk1, ... ]
+    // If entry is array of chunk strings (single frame)
     if (Array.isArray(entry) && typeof entry[0] === 'string') {
-      // treat as single frame made of chunks
       return [ padTo2048Bytes(entry.join('')) ];
     }
 
-    // Unknown shape
     return null;
   }
 
-    function getFramesFromMIS_ANIMATIONS(name){
+  function getFramesFromMIS_ANIMATIONS(name){
     if (!window.MIS_ANIMATIONS || !window.MIS_ANIMATIONS[name]) return null;
 
     const entry = window.MIS_ANIMATIONS[name];
-    const fullHex = flattenToString(entry)
-      .replace(/[^0-9A-Fa-f]/g, '')
-      .toUpperCase();
+    // flatten any shape to a single hex string, clean and uppercase
+    const fullHex = flattenToString(entry).replace(/[^0-9A-Fa-f]/g, '').toUpperCase();
 
     if (!fullHex) return null;
 
@@ -326,7 +375,6 @@ function renderOledBytesVariant(bytes, mode){
       return animFrames;
     }
 
-    // Then MIS_DISENOS
     const disFrames = getFramesFromMIS_DISENOS(name);
     if (disFrames && disFrames.length) {
       console.log(`getFramesForDesign: found MIS_DISENOS for ${name}, frames: ${disFrames.length}, hexLen=${String(disFrames[0]).length}`);
@@ -340,11 +388,9 @@ function renderOledBytesVariant(bytes, mode){
   function pickBestModeForHex(hex){
     try{
       const bytes = hexToBytes(hex);
-      const modes = ['standard','revbit','transpose','invert'];
+      const modes = ['standard','rows','revbit','transpose','invert'];
       const results = modes.map(m => ({ mode: m, lit: countLitPixels(bytes, m) }));
-      // prefer lit counts que no sean extremos (ni casi 0 ni casi 16384)
-      // score = distancia a rango ideal, prefer lit between 200 and 15000
-      results.forEach(r => r.score = Math.abs(r.lit - 4000)); // prefer ~4000 as baseline
+      results.forEach(r => r.score = Math.abs(r.lit - 4000));
       results.sort((a,b)=>a.score - b.score);
       console.log('pickBestModeForHex results', results);
       return results[0].mode;
@@ -353,14 +399,8 @@ function renderOledBytesVariant(bytes, mode){
     }
   }
 
-  // --- Mejorada: loadDesign soporta varias formas y detecta automáticamente modo de render ---
-  let lastFrames = []; // array of hex strings (each frame = 2048 bytes = 4096 hex chars)
-  let lastFramesChunks = null;
-  let previewTimer = null;
-  let previewIdx = 0;
-  let previewMode = 'standard';
-
-function loadDesign(nameOrArray, mode='standard') {
+  // loadDesign: soporte para animaciones y modos
+  function loadDesign(nameOrArray, mode='standard') {
     try {
       stopPreview();
 
@@ -423,66 +463,12 @@ function loadDesign(nameOrArray, mode='standard') {
     }
   }
 
-      // render first frame using chosenMode
-      const firstHex = lastFrames[0];
-      const bytes = hexToBytes(firstHex);
-      renderOledBytesVariant(bytes, chosenMode);
-
-      window._lastLoadedDesign = Array.isArray(nameOrArray) ? nameOrArray.join(',') : nameOrArray;
-      statusEl.innerText = 'Vista previa: ' + (Array.isArray(nameOrArray) ? ('Animación de: ' + nameOrArray.join(', ')) : nameOrArray) + ' (modo: ' + chosenMode + ', frames: ' + lastFrames.length + ')';
-      console.log('loadDesign loaded', window._lastLoadedDesign, 'frames:', lastFrames.length, 'hexLen:', firstHex.length);
-    } catch (e) {
-      console.error('loadDesign error', e);
-      statusEl.innerText = 'Error cargando diseño';
-    }
-  }
-
   // Conveniencia para botones: acepta varargs o array
   function loadDesignAsAnimation(...args) {
     const names = (args.length === 1 && Array.isArray(args[0])) ? args[0] : args;
     loadDesign(names, 'standard');
   }
 
-  function stopPreview() {
-    if (previewTimer) {
-      clearInterval(previewTimer);
-      previewTimer = null;
-    }
-  }
-
-  function flattenToString(v) {
-    if (Array.isArray(v)) return v.map(flattenToString).join('');
-    return String(v ?? '');
-  }
-
-  function startPreview(framesHex, mode = 'standard', fps = 10) {
-    stopPreview();
-
-    if (!framesHex || framesHex.length === 0) return;
-
-    previewMode = mode;
-    previewIdx = 0;
-
-    const delay = Math.max(20, Math.round(1000 / fps));
-
-    const renderCurrent = () => {
-      const hex = framesHex[previewIdx];
-      const bytes = hexToBytes(hex);
-      renderOledBytesVariant(bytes, previewMode);
-
-      statusEl.innerText =
-        `Vista previa: frame ${previewIdx + 1}/${framesHex.length} (${fps} FPS, modo: ${previewMode})`;
-
-      previewIdx = (previewIdx + 1) % framesHex.length;
-    };
-
-    renderCurrent();
-
-    if (framesHex.length > 1) {
-      previewTimer = setInterval(renderCurrent, delay);
-    }
-  }
-  
   // expose functions globally used by HTML
   window.showEmojiCat = showEmojiCat;
   window.setLines = setLines;
@@ -494,6 +480,7 @@ function loadDesign(nameOrArray, mode='standard') {
   window.resetDevice = resetDevice;
   window.transferOled = transferOled;
   window.loadDesign = loadDesign;
+  window.loadDesignAsAnimation = loadDesignAsAnimation;
 
   // init on DOMContentLoaded
   window.addEventListener('DOMContentLoaded', () => {
@@ -517,14 +504,12 @@ function loadDesign(nameOrArray, mode='standard') {
     document.body.appendChild(fixBtn);
 
     let modeIdx = 0;
-    const modes = ['standard', 'rows', 'transpose', 'revbit'];
+    const modes = ['standard', 'rows', 'transpose', 'revbit', 'invert'];
 
     fixBtn.onclick = () => {
       modeIdx = (modeIdx + 1) % modes.length;
       const currentMode = modes[modeIdx];
       statusEl.innerText = "Modo: " + currentMode;
-      
-      // Re-cargar el último diseño con el nuevo modo
       if(window._lastLoadedDesign) {
          loadDesign(window._lastLoadedDesign, currentMode);
       }
