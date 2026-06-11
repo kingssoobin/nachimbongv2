@@ -73,6 +73,16 @@
         <button id="sendBtn" class="btn-main glow" onclick="transferOled()">📡 Enviar al Nachimbong</button>
         <button id="wolfBtn" class="btn-sec" onclick="loadDesign('wolfchan_mexa')" style="margin-top:10px; width:100%">Wolfchan Mexa</button>
         <button class="btn-sec" onclick="initBT()" style="margin-top:10px; width:100%">🔄 Reconectar Bluetooth</button>
+        <div style="margin-top:10px; display:flex; gap:8px; align-items:center;">
+            <label for="renderMode" style="color:var(--text-mut); font-size:12px; margin-right:6px">Modo vista:</label>
+            <select id="renderMode" style="padding:8px; border-radius:8px; background:#0d1117; color:var(--text); border:1px solid var(--border)">
+                <option value="standard">Estndar</option>
+                <option value="revbit">Bits invertidos</option>
+                <option value="transpose">Transponer (rotar)</option>
+                <option value="invert">Invertir colores</option>
+            </select>
+            <button id="applyRenderMode" class="btn-sec" style="padding:8px 12px;">Probar modo</button>
+        </div>
         <div id="status" class="console-log" style="margin-top:15px">Listo para conectar...</div>
     </div>
 </main>

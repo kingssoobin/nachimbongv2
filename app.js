@@ -263,3 +263,91 @@ function loadDesign(name) {
 }
 
 // ---- fin de diseño ----
+
+
+// --- Rendering variants for troubleshooting designs ---
+function detectDesignBytes(hex, bytes) {
+    console.log('Design hex length:', hex.length, 'bytes length:', bytes.length);
+    console.log('First 64 bytes:', Array.from(bytes.slice(0,64)).map(b => b.toString(16).padStart(2,'0')).join(' '));
+}
+
+function renderOledBytesVariant(oledBytes, mode) {
+    const w = 128, h = 128;
+    const img = ctx.createImageData(w, h);
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            let bit = 0;
+            try {
+                if (mode === 'standard') {
+                    const byteIdx = Math.floor(y / 8) * w + x;
+                    bit = (oledBytes[byteIdx] >> (y % 8)) & 1;
+                } else if (mode === 'revbit') {
+                    const byteIdx = Math.floor(y / 8) * w + x;
+                    bit = (oledBytes[byteIdx] >> (7 - (y % 8))) & 1;
+                } else if (mode === 'transpose') {
+                    const byteIdx = Math.floor(x / 8) * h + y;
+                    bit = (oledBytes[byteIdx] >> (x % 8)) & 1;
+                } else if (mode === 'invert') {
+                    const byteIdx = Math.floor(y / 8) * w + x;
+                    bit = (oledBytes[byteIdx] >> (y % 8)) & 1;
+                    bit = bit ? 0 : 1;
+                } else {
+                    const byteIdx = Math.floor(y / 8) * w + x;
+                    bit = (oledBytes[byteIdx] >> (y % 8)) & 1;
+                }
+            } catch (e) {
+                bit = 0;
+            }
+            const i = (y * w + x) * 4;
+            const color = bit ? 255 : 0;
+            img.data[i] = color;
+            img.data[i + 1] = color;
+            img.data[i + 2] = color;
+            img.data[i + 3] = 255;
+        }
+    }
+    ctx.putImageData(img, 0, 0);
+    saveCanvas();
+}
+
+function loadDesign(name, mode = 'standard') {
+    try {
+        if (!window.MIS_DISENOS || !window.MIS_DISENOS[name]) {
+            statusEl.innerText = 'Diseno no encontrado: ' + name;
+            return;
+        }
+        const entry = window.MIS_DISENOS[name][0];
+        if (!Array.isArray(entry)) { statusEl.innerText = 'Formato de diseno invlido'; return; }
+        const hex = entry.join('');
+        const bytes = hexToBytes(hex);
+        detectDesignBytes(hex, bytes);
+        if (bytes.length < 2048) {
+            console.warn('Bytes menos de 2048, padding con ceros');
+            const b = new Uint8Array(2048);
+            b.set(bytes, 0);
+            renderOledBytesVariant(b, mode);
+        } else {
+            const b = bytes.slice(0, 2048);
+            renderOledBytesVariant(b, mode);
+        }
+        statusEl.innerText = 'Vista previa: ' + name + ' (modo: ' + mode + ')';
+    } catch (e) {
+        console.error('loadDesign error', e);
+        statusEl.innerText = 'Error cargando diseno';
+    }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('applyRenderMode');
+    const sel = document.getElementById('renderMode');
+    if (btn && sel) {
+        btn.addEventListener('click', () => {
+            const mode = sel.value || 'standard';
+            if (window._lastLoadedDesign) loadDesign(window._lastLoadedDesign, mode);
+            else statusEl.innerText = 'Primero carga un diseno (ej. Wolfchan Mexa)';
+        });
+    }
+});
+
+const _orig_loadDesign = window.loadDesign;
+window.loadDesign = function(name, mode='standard') { window._lastLoadedDesign = name; return loadDesign(name, mode); };
