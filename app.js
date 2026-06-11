@@ -1,4 +1,4 @@
-
+// app.fixed.js
 (function(){
   // Safe element getters
   const canvas = document.getElementById('canvas');
@@ -96,7 +96,8 @@
     const totalH = lineHeight * lines.length;
     const startY = (128 - totalH) / 2 + lineHeight / 2;
 
-    lines.forEach((line, i) => ctx.fillText(line, 64, startY + i * lineHeight));
+    ctx.clearRect(0,0,128,128);
+    for (let i=0;i<lines.length;i++) ctx.fillText(lines[i], 64, startY + i * lineHeight);
     saveCanvas();
     statusEl.innerText = `✅ ${lines.length} línea(s) aplicada(s).`;
   }
@@ -123,7 +124,7 @@
   function clearCanvas(){ ctx.fillStyle = 'black'; ctx.fillRect(0,0,128,128); saveCanvas(); }
   function saveCanvas(){ try{ localStorage.setItem('last_oled_img', canvas.toDataURL()); }catch(e){} }
 
-  // BLUETOOTH helpers
+  // BLUETOOTH helpers (no cambios respecto a tu versión)
   function initBT(){
     statusEl.innerText = 'Conectando Nachimbong...';
     try{
@@ -152,7 +153,7 @@
     }catch(e){ statusEl.innerText = 'Error al reiniciar: ' + (e && e.message); }
   }
 
-  // TRANSFER to NACHIMBONG: SSD1306 page-byte format
+  // TRANSFER to NACHIMBONG: SSD1306 page-byte format (sin cambios)
   async function transferOled(){
     statusEl.innerText = 'Preparando imagen...';
     const imgData = ctx.getImageData(0,0,128,128).data;
@@ -184,37 +185,28 @@
     statusEl.innerText = '✅ ¡Enviado correctamente!';
   }
 
-  // DESIGN loading and rendering
+  // --- Helpers para soportar diseños y animaciones desde MIS_DISENOS / MIS_ANIMATIONS ---
+  function padTo2048Bytes(hex) {
+    if (!hex) return '00'.repeat(2048);
+    const cleaned = String(hex).replace(/[^0-9A-Fa-f]/g,'');
+    const needed = 2048*2 - cleaned.length;
+    if (needed <= 0) return cleaned.substr(0, 2048*2).toUpperCase();
+    return (cleaned + '0'.repeat(needed)).toUpperCase();
+  }
+
   function hexToBytes(hex){
     if(!hex) return new Uint8Array();
-    const len = Math.floor(hex.length/2);
+    const s = String(hex).replace(/[^0-9A-Fa-f]/g,'');
+    const len = Math.floor(s.length/2);
     const out = new Uint8Array(len);
-    for(let i=0;i<len;i++) out[i] = parseInt(hex.substr(i*2,2), 16);
+    for(let i=0;i<len;i++) out[i] = parseInt(s.substr(i*2,2), 16);
     return out;
   }
 
-  function renderOledBytes(bytes){
-    try{
-      const w = 128, h = 128;
-      const img = ctx.createImageData(w,h);
-      for(let y=0;y<h;y++){
-        for(let x=0;x<w;x++){
-          const byteIdx = Math.floor(y/8) * w + x;
-          const bit = (bytes[byteIdx] >> (y % 8)) & 1;
-          const i = (y*w + x) * 4;
-          const color = bit ? 255 : 0;
-          img.data[i] = img.data[i+1] = img.data[i+2] = color;
-          img.data[i+3] = 255;
-        }
-      }
-      ctx.putImageData(img, 0, 0);
-      saveCanvas();
-    }catch(e){ console.error('renderOledBytes error', e); statusEl.innerText = 'Error al renderizar diseño'; }
-  }
-
-  function renderOledBytesVariant(bytes, mode){
+  // Conteo rápido de píxeles encendidos para heurística
+  function countLitPixels(bytes, mode){
     const w = 128, h = 128;
-    const img = ctx.createImageData(w,h);
+    let count = 0;
     for(let y=0;y<h;y++){
       for(let x=0;x<w;x++){
         let bit = 0;
@@ -230,106 +222,182 @@
             bit = (bytes[byteIdx] >> (x % 8)) & 1;
           } else if(mode === 'invert'){
             const byteIdx = Math.floor(y/8) * w + x;
-            bit = (bytes[byteIdx] >> (y % 8)) & 1; bit = bit ? 0 : 1;
-          } else {
-            const byteIdx = Math.floor(y/8) * w + x;
-            bit = (bytes[byteIdx] >> (y % 8)) & 1;
+            bit = ((bytes[byteIdx] >> (y % 8)) & 1) ? 0 : 1;
           }
         }catch(e){ bit = 0; }
-        const i = (y*w + x) * 4; const color = bit ? 255 : 0;
-        img.data[i] = img.data[i+1] = img.data[i+2] = color; img.data[i+3] = 255;
+        if(bit) count++;
       }
     }
-    ctx.putImageData(img, 0, 0); saveCanvas();
+    return count;
   }
 
-// --- Helpers para soportar diseños y animaciones desde MIS_DISENOS / MIS_ANIMATIONS ---
-  function padTo2048Bytes(hex) {
-    if (!hex) return '00'.repeat(2048);
-    const needed = 2048*2 - hex.length;
-    if (needed <= 0) return hex.substr(0, 2048*2);
-    return hex + '0'.repeat(needed);
+  function renderOledBytes(bytes){
+    renderOledBytesVariant(bytes, 'standard');
   }
 
+  function renderOledBytesVariant(bytes, mode){
+    try{
+      const w = 128, h = 128;
+      const img = ctx.createImageData(w,h);
+      for(let y=0;y<h;y++){
+        for(let x=0;x<w;x++){
+          let bit = 0;
+          try{
+            if(mode === 'standard'){
+              const byteIdx = Math.floor(y/8) * w + x;
+              bit = (bytes[byteIdx] >> (y % 8)) & 1;
+            } else if(mode === 'revbit'){
+              const byteIdx = Math.floor(y/8) * w + x;
+              bit = (bytes[byteIdx] >> (7 - (y % 8))) & 1;
+            } else if(mode === 'transpose'){
+              const byteIdx = Math.floor(x/8) * h + y;
+              bit = (bytes[byteIdx] >> (x % 8)) & 1;
+            } else if(mode === 'invert'){
+              const byteIdx = Math.floor(y/8) * w + x;
+              bit = (bytes[byteIdx] >> (y % 8)) & 1; bit = bit ? 0 : 1;
+            } else {
+              const byteIdx = Math.floor(y/8) * w + x;
+              bit = (bytes[byteIdx] >> (y % 8)) & 1;
+            }
+          }catch(e){ bit = 0; }
+          const i = (y*w + x) * 4; const color = bit ? 255 : 0;
+          img.data[i] = img.data[i+1] = img.data[i+2] = color; img.data[i+3] = 255;
+        }
+      }
+      ctx.putImageData(img, 0, 0);
+      saveCanvas();
+    }catch(e){ console.error('renderOledBytes error', e); statusEl.innerText = 'Error al renderizar diseño'; }
+  }
+
+  // --- Robust extraction of frames from MIS_DISENOS and MIS_ANIMATIONS ---
   function getFramesFromMIS_DISENOS(name) {
-    // MIS_DISENOS[name] expected shape: [ frame0_arrayOfChunks, frame1_arrayOfChunks, ... ]
-    // or old shape: [ arrayOfChunks ] (single frame)
     if (!window.MIS_DISENOS || !window.MIS_DISENOS[name]) return null;
     const entry = window.MIS_DISENOS[name];
-    // entry may be an array where each item is an array of chunk-strings (frame)
-    // or entry could be [chunks...] (single frame represented as array of chunk-strings).
-    // Detect: if entry[0] is an array -> treat each entry as a frame-array
-    if (Array.isArray(entry[0]) && entry[0].length > 0 && typeof entry[0][0] === 'string') {
-      // entry is [ frameArr0, frameArr1, ... ]
-      return entry.map(frameArr => {
-        // join chunks -> single hex per frame, padded to 2048 bytes
-        const hex = frameArr.join('').toUpperCase();
-        return padTo2048Bytes(hex);
-      });
-    } else if (Array.isArray(entry) && typeof entry[0] === 'string') {
-      // legacy single-frame: entry is the chunk list for single frame
-      const hex = entry.join('').toUpperCase();
-      return [ padTo2048Bytes(hex) ];
+
+    // Case A: entry is [ frameArr0, frameArr1, ... ] where frameArr is array of chunk-strings
+    if (Array.isArray(entry) && entry.length > 0 && Array.isArray(entry[0]) && typeof entry[0][0] === 'string') {
+      return entry.map(frameArr => padTo2048Bytes(frameArr.join('')));
     }
+
+    // Case B: legacy single-frame as array of chunk strings: [ chunk0, chunk1, ... ]
+    if (Array.isArray(entry) && typeof entry[0] === 'string') {
+      // treat as single frame made of chunks
+      return [ padTo2048Bytes(entry.join('')) ];
+    }
+
+    // Unknown shape
+    return null;
+  }
+
+  function getFramesFromMIS_ANIMATIONS(name){
+    if (!window.MIS_ANIMATIONS || !window.MIS_ANIMATIONS[name]) return null;
+    const entry = window.MIS_ANIMATIONS[name];
+
+    // Case A: array of full-hex-frames -> [ "ABC...", "DEF...", ... ]
+    if (Array.isArray(entry) && entry.length > 0 && typeof entry[0] === 'string') {
+      // If entry[0] looks like chunks concatenated (very long) still fine: pad/truncate to 2048 bytes
+      return entry.map(h => padTo2048Bytes(h));
+    }
+
+    // Case B: array of frames where each frame is an array of chunk-strings -> [ [chunk0,...], [chunk0,...] ]
+    if (Array.isArray(entry) && entry.length > 0 && Array.isArray(entry[0]) && typeof entry[0][0] === 'string') {
+      return entry.map(frameArr => padTo2048Bytes(frameArr.join('')));
+    }
+
+    // Unknown shape
     return null;
   }
 
   function getFramesForDesign(name) {
-    // Try MIS_ANIMATIONS first (already exported as long hex per frame)
-    if (window.MIS_ANIMATIONS && Array.isArray(window.MIS_ANIMATIONS[name])) {
-      return window.MIS_ANIMATIONS[name].map(h => padTo2048Bytes(String(h).toUpperCase()));
+    // Try MIS_ANIMATIONS first (more specific)
+    const animFrames = getFramesFromMIS_ANIMATIONS(name);
+    if (animFrames && animFrames.length) {
+      console.log(`getFramesForDesign: found MIS_ANIMATIONS for ${name}, frames: ${animFrames.length}, hexLen=${String(animFrames[0]).length}`);
+      return animFrames;
     }
-    // Then try MIS_DISENOS
-    const fromDisenos = getFramesFromMIS_DISENOS(name);
-    if (fromDisenos && fromDisenos.length) return fromDisenos;
+
+    // Then MIS_DISENOS
+    const disFrames = getFramesFromMIS_DISENOS(name);
+    if (disFrames && disFrames.length) {
+      console.log(`getFramesForDesign: found MIS_DISENOS for ${name}, frames: ${disFrames.length}, hexLen=${String(disFrames[0]).length}`);
+      return disFrames;
+    }
+
     return null;
   }
 
-  // --- Mejorada: loadDesign soporta:
-  //  - name = 'wolfchan_mexa' (single design)
-  //  - name = ['wolfchan_mexa','bangchan_an01'] (array) -> carga ambos como secuencia de frames
-  //  - acepta MIS_ANIMATIONS (pre-exported) y MIS_DISENOS (chunk arrays)
+  // Heurística: prueba varios modos de interpretación de bits y elige el más "razonable"
+  function pickBestModeForHex(hex){
+    try{
+      const bytes = hexToBytes(hex);
+      const modes = ['standard','revbit','transpose','invert'];
+      const results = modes.map(m => ({ mode: m, lit: countLitPixels(bytes, m) }));
+      // prefer lit counts que no sean extremos (ni casi 0 ni casi 16384)
+      // score = distancia a rango ideal, prefer lit between 200 and 15000
+      results.forEach(r => r.score = Math.abs(r.lit - 4000)); // prefer ~4000 as baseline
+      results.sort((a,b)=>a.score - b.score);
+      console.log('pickBestModeForHex results', results);
+      return results[0].mode;
+    }catch(e){
+      return 'standard';
+    }
+  }
+
+  // --- Mejorada: loadDesign soporta varias formas y detecta automáticamente modo de render ---
+  let lastFrames = []; // array of hex strings (each padded to 2048 bytes)
+  let lastFramesChunks = null;
+
   function loadDesign(nameOrArray, mode='standard') {
     try {
       let framesHex = [];
 
       if (Array.isArray(nameOrArray)) {
-        // build framesHex concatenando cada diseño pedido
         for (let nm of nameOrArray) {
           const f = getFramesForDesign(nm);
-          if (!f) {
-            statusEl.innerText = 'Diseño no encontrado o formato inválido: ' + nm;
-            return;
-          }
-          // push all frames from this design (often single-frame)
+          if (!f) { statusEl.innerText = 'Diseño no encontrado o formato inválido: ' + nm; return; }
           framesHex.push(...f);
         }
       } else {
         const name = nameOrArray;
         const f = getFramesForDesign(name);
-        if (!f) {
-          statusEl.innerText = 'Diseño no encontrado: ' + name;
-          return;
-        }
+        if (!f) { statusEl.innerText = 'Diseño no encontrado: ' + name; return; }
         framesHex = f;
       }
 
-      if (!framesHex.length) {
-        statusEl.innerText = 'No se obtuvieron frames para el/los diseño(s).';
-        return;
+      if (!framesHex.length) { statusEl.innerText = 'No se obtuvieron frames para el/los diseño(s).'; return; }
+
+      // normalize: ensure each is padded to 2048 bytes hex
+      framesHex = framesHex.map(h => padTo2048Bytes(h));
+
+      lastFrames = framesHex;
+      lastFramesChunks = null;
+
+      // determine best mode for first frame if user selected 'auto'
+      let chosenMode = mode;
+      if (mode === 'standard' || mode === 'auto') {
+        // if user explicitly chose 'standard' keep it, else 'auto' tries to detect
+        if (mode === 'auto') chosenMode = pickBestModeForHex(framesHex[0]);
       }
 
-      // keep lastFrames for preview & transfer
-      lastFrames = framesHex; // each is a long hex string already padded to 2048 bytes
-      lastFramesChunks = null; // we can derive chunks later if needed
+      // If user passed 'standard' but preview looks bad, try to auto-fix:
+      if (mode === 'standard') {
+        // compute lit pixels in standard
+        const stdCount = countLitPixels(hexToBytes(framesHex[0]), 'standard');
+        if (stdCount < 100 || stdCount > 16000) {
+          // fallback to auto pick
+          chosenMode = pickBestModeForHex(framesHex[0]);
+          console.log(`standard mode looked odd (lit=${stdCount}), switching to ${chosenMode}`);
+        } else chosenMode = 'standard';
+      }
 
-      // render first frame (convert to bytes)
+      // render first frame using chosenMode
       const firstHex = lastFrames[0];
       const bytes = hexToBytes(firstHex);
-      renderOledBytesVariant(bytes, mode);
+      renderOledBytesVariant(bytes, chosenMode);
 
       window._lastLoadedDesign = Array.isArray(nameOrArray) ? nameOrArray.join(',') : nameOrArray;
-      statusEl.innerText = 'Vista previa: ' + (Array.isArray(nameOrArray) ? ('Animación de: ' + nameOrArray.join(', ')) : nameOrArray) + ' (modo: ' + mode + ', frames: ' + lastFrames.length + ')';
+      statusEl.innerText = 'Vista previa: ' + (Array.isArray(nameOrArray) ? ('Animación de: ' + nameOrArray.join(', ')) : nameOrArray) + ' (modo: ' + chosenMode + ', frames: ' + lastFrames.length + ')';
+      console.log('loadDesign loaded', window._lastLoadedDesign, 'frames:', lastFrames.length, 'hexLen:', firstHex.length);
     } catch (e) {
       console.error('loadDesign error', e);
       statusEl.innerText = 'Error cargando diseño';
@@ -338,7 +406,6 @@
 
   // Conveniencia para botones: acepta varargs o array
   function loadDesignAsAnimation(...args) {
-    // caller can pass either multiple string args or a single array
     const names = (args.length === 1 && Array.isArray(args[0])) ? args[0] : args;
     loadDesign(names, 'standard');
   }

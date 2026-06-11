@@ -1,4 +1,4 @@
-// wolfchan_mexa.js
+// wolfchan_mexa.fixed.js
 const MIS_DISENOS_WOLFCHAN = {
   "wolfchan_mexa": [
     [
@@ -22,7 +22,4 @@ const MIS_DISENOS_WOLFCHAN = {
   ]
 };
 
-if (typeof window !== 'undefined') {
-  // Mezcla sin sobreescribir entradas previas
-  window.MIS_DISENOS = Object.assign(window.MIS_DISENOS || {}, MIS_DISENOS_WOLFCHAN);
-}
+if (typeof window !== 'undefined') window.MIS_DISENOS = Object.assign(window.MIS_DISENOS || {}, MIS_DISENOS_WOLFCHAN);
