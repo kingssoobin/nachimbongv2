@@ -300,23 +300,22 @@ function renderOledBytesVariant(bytes, mode){
     return null;
   }
 
-  function getFramesFromMIS_ANIMATIONS(name){
+    function getFramesFromMIS_ANIMATIONS(name){
     if (!window.MIS_ANIMATIONS || !window.MIS_ANIMATIONS[name]) return null;
+
     const entry = window.MIS_ANIMATIONS[name];
+    const fullHex = flattenToString(entry)
+      .replace(/[^0-9A-Fa-f]/g, '')
+      .toUpperCase();
 
-    // Case A: array of full-hex-frames -> [ "ABC...", "DEF...", ... ]
-    if (Array.isArray(entry) && entry.length > 0 && typeof entry[0] === 'string') {
-      // If entry[0] looks like chunks concatenated (very long) still fine: pad/truncate to 2048 bytes
-      return entry.map(h => padTo2048Bytes(h));
+    if (!fullHex) return null;
+
+    const frames = [];
+    for (let i = 0; i < fullHex.length; i += 4096) {
+      frames.push(padTo2048Bytes(fullHex.slice(i, i + 4096)));
     }
 
-    // Case B: array of frames where each frame is an array of chunk-strings -> [ [chunk0,...], [chunk0,...] ]
-    if (Array.isArray(entry) && entry.length > 0 && Array.isArray(entry[0]) && typeof entry[0][0] === 'string') {
-      return entry.map(frameArr => padTo2048Bytes(frameArr.join('')));
-    }
-
-    // Unknown shape
-    return null;
+    return frames.length ? frames : null;
   }
 
   function getFramesForDesign(name) {
@@ -355,11 +354,16 @@ function renderOledBytesVariant(bytes, mode){
   }
 
   // --- Mejorada: loadDesign soporta varias formas y detecta automáticamente modo de render ---
-  let lastFrames = []; // array of hex strings (each padded to 2048 bytes)
+  let lastFrames = []; // array of hex strings (each frame = 2048 bytes = 4096 hex chars)
   let lastFramesChunks = null;
+  let previewTimer = null;
+  let previewIdx = 0;
+  let previewMode = 'standard';
 
-  function loadDesign(nameOrArray, mode='standard') {
+function loadDesign(nameOrArray, mode='standard') {
     try {
+      stopPreview();
+
       let framesHex = [];
 
       if (Array.isArray(nameOrArray)) {
@@ -375,31 +379,49 @@ function renderOledBytesVariant(bytes, mode){
         framesHex = f;
       }
 
-      if (!framesHex.length) { statusEl.innerText = 'No se obtuvieron frames para el/los diseño(s).'; return; }
+      if (!framesHex.length) {
+        statusEl.innerText = 'No se obtuvieron frames para el/los diseño(s).';
+        return;
+      }
 
-      // normalize: ensure each is padded to 2048 bytes hex
       framesHex = framesHex.map(h => padTo2048Bytes(h));
 
       lastFrames = framesHex;
       lastFramesChunks = null;
 
-      // determine best mode for first frame if user selected 'auto'
       let chosenMode = mode;
-      if (mode === 'standard' || mode === 'auto') {
-        // if user explicitly chose 'standard' keep it, else 'auto' tries to detect
-        if (mode === 'auto') chosenMode = pickBestModeForHex(framesHex[0]);
+      if (mode === 'auto') {
+        chosenMode = pickBestModeForHex(framesHex[0]);
       }
 
-      // If user passed 'standard' but preview looks bad, try to auto-fix:
       if (mode === 'standard') {
-        // compute lit pixels in standard
         const stdCount = countLitPixels(hexToBytes(framesHex[0]), 'standard');
         if (stdCount < 100 || stdCount > 16000) {
-          // fallback to auto pick
           chosenMode = pickBestModeForHex(framesHex[0]);
-          console.log(`standard mode looked odd (lit=${stdCount}), switching to ${chosenMode}`);
-        } else chosenMode = 'standard';
+        } else {
+          chosenMode = 'standard';
+        }
       }
+
+      window._lastLoadedDesign = Array.isArray(nameOrArray) ? nameOrArray.join(',') : nameOrArray;
+
+      // Si hay varios frames, reproducir animación
+      if (framesHex.length > 1) {
+        startPreview(framesHex, chosenMode, 10);
+      } else {
+        const bytes = hexToBytes(framesHex[0]);
+        renderOledBytesVariant(bytes, chosenMode);
+        statusEl.innerText =
+          'Vista previa: ' + (Array.isArray(nameOrArray) ? ('Animación de: ' + nameOrArray.join(', ')) : nameOrArray) +
+          ' (modo: ' + chosenMode + ', frames: ' + lastFrames.length + ')';
+      }
+
+      console.log('loadDesign loaded', window._lastLoadedDesign, 'frames:', lastFrames.length, 'hexLen:', framesHex[0].length);
+    } catch (e) {
+      console.error('loadDesign error', e);
+      statusEl.innerText = 'Error cargando diseño';
+    }
+  }
 
       // render first frame using chosenMode
       const firstHex = lastFrames[0];
@@ -421,6 +443,46 @@ function renderOledBytesVariant(bytes, mode){
     loadDesign(names, 'standard');
   }
 
+  function stopPreview() {
+    if (previewTimer) {
+      clearInterval(previewTimer);
+      previewTimer = null;
+    }
+  }
+
+  function flattenToString(v) {
+    if (Array.isArray(v)) return v.map(flattenToString).join('');
+    return String(v ?? '');
+  }
+
+  function startPreview(framesHex, mode = 'standard', fps = 10) {
+    stopPreview();
+
+    if (!framesHex || framesHex.length === 0) return;
+
+    previewMode = mode;
+    previewIdx = 0;
+
+    const delay = Math.max(20, Math.round(1000 / fps));
+
+    const renderCurrent = () => {
+      const hex = framesHex[previewIdx];
+      const bytes = hexToBytes(hex);
+      renderOledBytesVariant(bytes, previewMode);
+
+      statusEl.innerText =
+        `Vista previa: frame ${previewIdx + 1}/${framesHex.length} (${fps} FPS, modo: ${previewMode})`;
+
+      previewIdx = (previewIdx + 1) % framesHex.length;
+    };
+
+    renderCurrent();
+
+    if (framesHex.length > 1) {
+      previewTimer = setInterval(renderCurrent, delay);
+    }
+  }
+  
   // expose functions globally used by HTML
   window.showEmojiCat = showEmojiCat;
   window.setLines = setLines;
