@@ -1,9 +1,8 @@
-// bangchan_an01.fixed.js
-// Esta versión crea MIS_ANIMATIONS (frames completos) y añade compatibilidad MIS_DISENOS (chunks)
+// bangchan_an01.js (versión reparadora - agrupa chunks en frames de 2048 bytes / 4096 hex chars)
 
-const MIS_DISENOS_BANGCHAN = {
-  "bangchan_an01": [
-    // chunks (legacy): si tu código antiguo espera array de 16 chunks, aquí están.
+(function(){
+  // CHUNKS originales (legacy). Manténlos tal cual si los tienes en tu archivo.
+  const ORIGINAL_CHUNKS = [
     "00000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0000000000000000",
     "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0000000000000000",
     "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0000000000000000",
@@ -22,21 +21,66 @@ const MIS_DISENOS_BANGCHAN = {
     "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0000000000000000",
     "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFCFCFCFCFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFCFCFCFCFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0000000000000000",
     "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00000000000000000000000010103C0018000018381010001018101800001010281C2800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000"
-  ]
-};
+  ];
 
-const MIS_ANIMACIONES_BANGCHAN = (function(){
-  // Creamos frames completos a partir de los chunks (join). app.fixed.js hará padding a 2048 bytes si hace falta.
-  const chunks = MIS_DISENOS_BANGCHAN["bangchan_an01"];
-  return {
-    "bangchan_an01": [
-      chunks.join('').toUpperCase()
-    ]
+  // Limpia y normaliza hex
+  function cleanHex(s){ return String(s||'').replace(/[^0-9A-Fa-f]/g,'').toUpperCase(); }
+
+  // construye frames (cada frame 2048 bytes = 4096 hex chars)
+  function buildFramesFromChunks(chunks){
+    const FRAME_HEX_LEN = 2048 * 2; // 4096
+    const frames = [];
+    let buf = '';
+
+    for (let raw of chunks){
+      const h = cleanHex(raw);
+      if (!h) continue;
+
+      // Si la entrada ya es >= FRAME_HEX_LEN y es múltiplo de FRAME_HEX_LEN, dividirla en frames directos
+      if (h.length >= FRAME_HEX_LEN) {
+        let pos = 0;
+        while (pos + FRAME_HEX_LEN <= h.length) {
+          frames.push(h.substr(pos, FRAME_HEX_LEN));
+          pos += FRAME_HEX_LEN;
+        }
+        // si quedó resto, lo ponemos al buffer
+        if (pos < h.length) buf += h.substr(pos);
+        continue;
+      }
+
+      // si es pequeño, acumular
+      buf += h;
+      while (buf.length >= FRAME_HEX_LEN) {
+        frames.push(buf.substr(0, FRAME_HEX_LEN));
+        buf = buf.substr(FRAME_HEX_LEN);
+      }
+    }
+
+    // si quedó buffer final, pad con ceros hasta completar un frame
+    if (buf.length > 0) {
+      frames.push(buf.padEnd(FRAME_HEX_LEN, '0'));
+      buf = '';
+    }
+
+    return frames;
+  }
+
+  // Construimos MIS_ANIMATIONS automáticamente
+  const frames = buildFramesFromChunks(ORIGINAL_CHUNKS);
+
+  // Logs útiles para depuración
+  console.log('bangchan_an01: reconstructed frames count =', frames.length);
+  if (frames.length) console.log('bangchan_an01: first frame hex length =', frames[0].length);
+
+  // Exportar: MIS_ANIMATIONS (frames completos) y MIS_DISENOS (legacy chunks)
+  const MIS_ANIMACIONES_BANGCHAN = { "bangchan_an01": frames };
+
+  const MIS_DISENOS_BANGCHAN = {
+    "bangchan_an01": ORIGINAL_CHUNKS.slice() // mantiene los chunks originales para compatibilidad
   };
-})();
 
-if (typeof window !== 'undefined') {
-  // añadir animaciones y compatibilidad
-  window.MIS_ANIMATIONS = Object.assign(window.MIS_ANIMATIONS || {}, MIS_ANIMACIONES_BANGCHAN);
-  window.MIS_DISENOS = Object.assign(window.MIS_DISENOS || {}, MIS_DISENOS_BANGCHAN);
-}
+  if (typeof window !== 'undefined') {
+    window.MIS_ANIMATIONS = Object.assign(window.MIS_ANIMATIONS || {}, MIS_ANIMACIONES_BANGCHAN);
+    window.MIS_DISENOS = Object.assign(window.MIS_DISENOS || {}, MIS_DISENOS_BANGCHAN);
+  }
+})();
