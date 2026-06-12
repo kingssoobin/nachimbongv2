@@ -702,3 +702,83 @@
     }catch(e){}
   });
 })();
+
+
+// --- PATCH v2: Conservative send (Option B) - chunk numbering 1..16, larger delays and per-frame commit ---
+(function(){
+  try{ if(window._patched_transferCurrentAnimation_v2) return; }catch(e){}
+  // keep backup of previous implementations
+  try{ if(window.transferCurrentAnimation && !window._orig_transferCurrentAnimation_v2) window._orig_transferCurrentAnimation_v2 = window.transferCurrentAnimation; }catch(e){}
+  window._patched_transferCurrentAnimation_v2 = true;
+
+  function cleanHex(s){ return String(s||'').replace(/[^0-9A-Fa-f]/g,'').toUpperCase(); }
+  function padToFrame(hex){ const FRAME_HEX_LEN = 2048*2; const h = cleanHex(hex); if(h.length>=FRAME_HEX_LEN) return h.substr(0,FRAME_HEX_LEN); return h.padEnd(FRAME_HEX_LEN,'0'); }
+  function buildChunksFromFrameHex(frameHex){ const padded = padToFrame(frameHex); const CHUNK_HEX_LEN = 128*2; const chunks = []; for(let i=0;i<padded.length;i+=CHUNK_HEX_LEN) chunks.push(padded.substr(i,CHUNK_HEX_LEN)); return chunks; }
+
+  function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
+
+  async function bridgeSend(cmd){
+    if(window.bridge && typeof window.bridge.bleSendCmdList === 'function'){
+      try{ window.bridge.bleSendCmdList(cmd); }catch(e){ console.error('bridgeSend err',e); }
+    } else if(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.bleSendCmdList && typeof window.webkit.messageHandlers.bleSendCmdList.postMessage === 'function'){
+      try{ window.webkit.messageHandlers.bleSendCmdList.postMessage(cmd); }catch(e){ console.error('webkitSend err',e); }
+    } else {
+      throw new Error('bridge not available');
+    }
+  }
+
+  // Conservative transfer: send chunks numbered 1..16, longer per-chunk delay and a prep/commit (8110,-) before and after each frame
+  window.transferCurrentAnimation = async function(perChunkDelayMs = 80, perFrameDelayMs = 80) {
+    const statusEl = document.getElementById('status');
+    function setStatus(t){ try{ if(statusEl) statusEl.innerText = t; }catch(e){} }
+
+    // obtain frames
+    let frames = [];
+    if(Array.isArray(window.lastFrames) && window.lastFrames.length>0) frames = window.lastFrames.slice();
+    else if(window.MIS_ANIMATIONS){ const k = Object.keys(window.MIS_ANIMATIONS)[0]; if(k) frames = window.MIS_ANIMATIONS[k].slice(); }
+    if(!frames || frames.length===0){ setStatus('No hay frames para enviar.'); return; }
+
+    setStatus(`Iniciando envío conservador de ${frames.length} frames`);
+
+    for(let fi=0; fi<frames.length; fi++){
+      const fhex = padToFrame(frames[fi]);
+      const chunks = buildChunksFromFrameHex(fhex);
+      setStatus(`Frame ${fi+1}/${frames.length}: prep`);
+
+      // pre-frame reset/prep
+      try{ await bridgeSend('8110,-'); }catch(e){}
+      await sleep(120);
+
+      // send chunks numbered 1..N
+      const start = Date.now();
+      for(let ci=0; ci<chunks.length; ci++){
+        const idx = (ci+1).toString(16).padStart(2,'0').toUpperCase();
+        const cmd = `810F00000000${idx}${chunks[ci]},-`;
+        try{ await bridgeSend(cmd); }catch(e){ console.error('chunk send err', e); }
+        await sleep(perChunkDelayMs);
+      }
+
+      // post-frame commit/reset to force apply
+      try{ await bridgeSend('8110,-'); }catch(e){}
+
+      // ensure at least perFrameDelayMs since start
+      const elapsed = Date.now() - start;
+      const wait = Math.max(perFrameDelayMs, 0) - Math.max(0, elapsed - (perChunkDelayMs*chunks.length));
+      if(wait>0) await sleep(wait);
+
+      setStatus(`Frame ${fi+1}/${frames.length} enviado`);
+    }
+
+    setStatus('Envío conservador completado.');
+  };
+
+  // attach to sendBtn to use conservative defaults
+  window.addEventListener('DOMContentLoaded', ()=>{
+    try{
+      const sendBtn = document.getElementById('sendBtn');
+      if(sendBtn){ try{ sendBtn.removeAttribute && sendBtn.removeAttribute('onclick'); }catch(e){}
+        sendBtn.addEventListener('click', async (ev)=>{ ev&&ev.preventDefault&&ev.preventDefault(); try{ await window.transferCurrentAnimation(80,80); }catch(e){ console.error(e); if(window._orig_transferCurrentAnimation_v2) try{ await window._orig_transferCurrentAnimation_v2(80,80); }catch(e2){} } }, {passive:false});
+      }
+    }catch(e){}
+  });
+})();
