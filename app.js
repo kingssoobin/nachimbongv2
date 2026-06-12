@@ -613,3 +613,30 @@
     };
   });
 })();
+
+
+// --- PATCH: ensure send button sends full animation when available (minimal, no debug) ---
+(function(){
+  window.addEventListener('DOMContentLoaded', () => {
+    try {
+      const sendEl = document.getElementById('sendBtn');
+      if(!sendEl) return;
+      // remove inline onclick to avoid duplicate calls
+      try { sendEl.removeAttribute && sendEl.removeAttribute('onclick'); } catch(e){}
+      // attach a single handler that prefers sending the full animation snapshot
+      sendEl.addEventListener('click', async function(ev){
+        ev && ev.preventDefault && ev.preventDefault();
+        try {
+          if (Array.isArray(window.lastFrames) && window.lastFrames.length > 1) {
+            await window.transferCurrentAnimation(8, 150);
+          } else {
+            await window.transferOled();
+          }
+        } catch(err) {
+          // fallback: try sending current canvas if animation send fails
+          try { await window.transferOled(); } catch(e) { /* swallow */ }
+        }
+      }, { passive: false });
+    } catch(e) { /* ignore */ }
+  });
+})();
