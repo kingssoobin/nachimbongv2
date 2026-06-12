@@ -171,6 +171,104 @@
       }
     }
 
+// ---------- Envío de animaciones (snapshot, chunks y progreso) ----------
+  const delay = ms => new Promise(r => setTimeout(r, ms));
+
+  // Construye 16 chunks de 128 bytes (256 hex chars) desde un frame hex de 4096 chars
+  function buildChunksFromFrameHex(frameHex) {
+    const clean = String(frameHex || '').replace(/[^0-9A-Fa-f]/g,'').toUpperCase();
+    const padded = padTo2048Bytes(clean); // asegura 4096 hex chars
+    const CHUNK_HEX_LEN = 128 * 2; // 256 hex chars
+    const chunks = [];
+    for (let i = 0; i < 2048 * 2; i += CHUNK_HEX_LEN) {
+      chunks.push(padded.substr(i, CHUNK_HEX_LEN));
+    }
+    return chunks; // length debería ser 16
+  }
+
+  // Envía un chunk hex con el formato que usa transferOled (misma estructura)
+  async function sendChunkHex(chunkHex, partIndex, perChunkDelay = 150) {
+    const partHex = partIndex.toString(16).padStart(2, '0').toUpperCase();
+    const cmd = `810F00000000${partHex}${chunkHex},-`;
+    try {
+      if (window.bridge && typeof window.bridge.bleSendCmdList === 'function') {
+        window.bridge.bleSendCmdList(cmd);
+      } else if (window.webkit?.messageHandlers?.bleSendCmdList) {
+        window.webkit.messageHandlers.bleSendCmdList.postMessage(cmd);
+      } else {
+        throw new Error('Bridge BLE no disponible');
+      }
+      await delay(perChunkDelay);
+    } catch (e) {
+      console.error('sendChunkHex error', e);
+      throw e;
+    }
+  }
+
+  // Envía una animación completa (array de frames hex). Pausa preview y hace snapshot.
+  // framesHexArray: array de strings hex (cada una 4096 hex chars)
+  // fps: frames por segundo deseados (default 8)
+  // perChunkDelayMs: delay entre chunks (default 120-150 ms) — ajustar según estabilidad
+  window.transferAnimationFull = async function(framesHexArray, fps = 8, perChunkDelayMs = 150) {
+    if (!Array.isArray(framesHexArray) || framesHexArray.length === 0) {
+      statusEl.innerText = 'No hay frames para enviar.';
+      return;
+    }
+
+    // snapshot para evitar race conditions con la preview
+    const snapshot = framesHexArray.slice().map(h => padTo2048Bytes(h));
+    const totalFrames = snapshot.length;
+    const frameIntervalMs = Math.max(1, Math.round(1000 / Math.max(1, fps)));
+
+    // pausa preview si está corriendo
+    const wasPreviewRunning = !!previewTimer;
+    if (wasPreviewRunning) stopPreview();
+
+    try {
+      statusEl.innerText = `Enviando animación (${totalFrames} frames)...`;
+      for (let fi = 0; fi < totalFrames; fi++) {
+        const frameHex = snapshot[fi];
+        const chunks = buildChunksFromFrameHex(frameHex); // 16 chunks
+        const start = Date.now();
+
+        for (let pi = 0; pi < chunks.length; pi++) {
+          statusEl.innerText = `Enviando frame ${fi+1}/${totalFrames} chunk ${pi+1}/${chunks.length}...`;
+          await sendChunkHex(chunks[pi], pi, perChunkDelayMs);
+        }
+
+        // Si queremos respetar fps, esperar lo que reste del frameInterval
+        const elapsed = Date.now() - start;
+        const wait = frameIntervalMs - elapsed;
+        if (wait > 0) await delay(wait);
+
+        // actualización de progreso por frames
+        statusEl.innerText = `Enviado ${fi+1}/${totalFrames} frames (${Math.round(((fi+1)/totalFrames)*100)}%)`;
+      }
+
+      statusEl.innerText = '✅ Animación enviada correctamente.';
+    } catch (err) {
+      console.error('Error enviando animación:', err);
+      statusEl.innerText = '⚠️ Error enviando animación: ' + (err && err.message ? err.message : err);
+    } finally {
+      // reanudar preview si estaba corriendo
+      if (wasPreviewRunning && lastFrames && lastFrames.length > 1) {
+        startPreview(lastFrames, previewMode, Math.round(1000 / Math.max(1, frameIntervalMs)));
+      }
+    }
+  };
+
+  // Conveniencia: envía la animación actualmente cargada (lastFrames) desde el primer frame.
+  // Llama a transferAnimationFull con un snapshot para evitar leer el frame visible.
+  window.transferCurrentAnimation = async function(fps = 8, perChunkDelayMs = 150) {
+    if (!lastFrames || !lastFrames.length) {
+      statusEl.innerText = 'No hay animación cargada para enviar.';
+      return;
+    }
+    // snapshot copia
+    const snap = lastFrames.slice();
+    await window.transferAnimationFull(snap, fps, perChunkDelayMs);
+  };
+    
     // send in 16 chunks of 128 bytes via bridge or webkit
     for(let part=0; part<16; part++){
       const chunk = oledBytes.slice(part * 128, (part+1) * 128);
