@@ -124,33 +124,9 @@
   function saveCanvas(){ try{ localStorage.setItem('last_oled_img', canvas.toDataURL()); }catch(e){} }
 
   // BLUETOOTH helpers (bridge)
-  function initBT(){
-    statusEl.innerText = 'Conectando Nachimbong...';
-    try{
-      if(window.bridge && typeof window.bridge.blePairingStart === 'function'){
-        window.bridge.blePairingStart(''); statusEl.innerText = 'Emparejando...';
-      } else if(window.webkit?.messageHandlers?.blePairingStart){
-        window.webkit.messageHandlers.blePairingStart.postMessage(''); statusEl.innerText = 'Emparejando (iOS)...';
-      } else {
-        statusEl.innerText = '⚠️ Bridge no disponible (solo funciona en la app).';
-      }
-    }catch(e){ statusEl.innerText = 'Error BT: ' + (e && e.message); }
-  }
+  function initBT(){ if(window.NachimbongConnect && typeof window.NachimbongConnect.initBT==='function'){ return window.NachimbongConnect.initBT(); } else { console.warn('NachimbongConnect not loaded'); } }
 
-  function resetDevice(){
-    statusEl.innerText = 'Reiniciando Nachimbong...';
-    try{
-      const resetCmd = '8110,-';
-      if(window.bridge) {
-        window.bridge.bleSendCmdList(resetCmd);
-        setTimeout(()=>{ window.bridge.bleDisconnect(''); setTimeout(initBT,2000); }, 500);
-      } else if(window.webkit?.messageHandlers?.bleSendCmdList){
-        window.webkit.messageHandlers.bleSendCmdList.postMessage(resetCmd);
-        setTimeout(()=>{ window.webkit.messageHandlers.bleDisconnect?.postMessage(''); setTimeout(initBT,2000); }, 500);
-      }
-      statusEl.innerText = 'Reiniciando... reconectando en 2s';
-    }catch(e){ statusEl.innerText = 'Error al reiniciar: ' + (e && e.message); }
-  }
+  function resetDevice(){ if(window.NachimbongConnect && typeof window.NachimbongConnect.resetDevice==='function'){ return window.NachimbongConnect.resetDevice(); } else { console.warn('NachimbongConnect not loaded for reset'); } }
 
   // TRANSFER to NACHIMBONG: SSD1306 page-byte format
   async function transferOled(){
@@ -171,17 +147,7 @@
     }
 
     // send in 16 chunks of 128 bytes via bridge or webkit
-    for(let part=0; part<16; part++){
-      const chunk = oledBytes.slice(part * 128, (part+1) * 128);
-      const hexData = Array.from(chunk).map(b => b.toString(16).padStart(2,'0')).join('');
-      const cmd = `810F00000000${part.toString(16).padStart(2,'0')}${hexData},-`;
-      try{
-        if(window.bridge && typeof window.bridge.bleSendCmdList === 'function') window.bridge.bleSendCmdList(cmd);
-        else if(window.webkit?.messageHandlers?.bleSendCmdList) window.webkit.messageHandlers.bleSendCmdList.postMessage(cmd);
-        statusEl.innerText = `Enviando: ${Math.round(((part+1)/16)*100)}%`;
-        await new Promise(r => setTimeout(r, 150));
-      }catch(e){ statusEl.innerText = '⚠️ Error en parte ' + (part+1); console.error(e); return; }
-    }
+    if(window.NachimbongConnect && typeof window.NachimbongConnect.sendOledChunks==='function'){ const ok = await window.NachimbongConnect.sendOledChunks(oledBytes, { perChunkDelay: 150, perFinalDelay: 200 }); if(!ok){ statusEl.innerText = '⚠️ Error enviando'; return; } } else { console.warn('NachimbongConnect not available — cannot send'); statusEl.innerText = 'Bridge no disponible'; return; }
     statusEl.innerText = '✅ ¡Enviado correctamente!';
   }
 
