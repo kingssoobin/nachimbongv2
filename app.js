@@ -1,4 +1,3 @@
-// app.js (versión corregida: animaciones, heurística de modos y bridge)
 (function(){
   // Safe element getters
   const canvas = document.getElementById('canvas');
@@ -171,7 +170,22 @@
       }
     }
 
-// ---------- Envío de animaciones (snapshot, chunks y progreso) ----------
+    // send in 16 chunks of 128 bytes via bridge or webkit
+    for(let part=0; part<16; part++){
+      const chunk = oledBytes.slice(part * 128, (part+1) * 128);
+      const hexData = Array.from(chunk).map(b => b.toString(16).padStart(2,'0')).join('');
+      const cmd = `810F00000000${part.toString(16).padStart(2,'0')}${hexData},-`;
+      try{
+        if(window.bridge && typeof window.bridge.bleSendCmdList === 'function') window.bridge.bleSendCmdList(cmd);
+        else if(window.webkit?.messageHandlers?.bleSendCmdList) window.webkit.messageHandlers.bleSendCmdList.postMessage(cmd);
+        statusEl.innerText = `Enviando: ${Math.round(((part+1)/16)*100)}%`;
+        await new Promise(r => setTimeout(r, 150));
+      }catch(e){ statusEl.innerText = '⚠️ Error en parte ' + (part+1); console.error(e); return; }
+    }
+    statusEl.innerText = '✅ ¡Enviado correctamente!';
+  }
+
+  // ---------- Envío de animaciones (snapshot, chunks y progreso) ----------
   const delay = ms => new Promise(r => setTimeout(r, ms));
 
   // Construye 16 chunks de 128 bytes (256 hex chars) desde un frame hex de 4096 chars
@@ -194,7 +208,7 @@
       if (window.bridge && typeof window.bridge.bleSendCmdList === 'function') {
         window.bridge.bleSendCmdList(cmd);
       } else if (window.webkit?.messageHandlers?.bleSendCmdList) {
-        window.webkit.messageHandlers.bleSendCmdList.postMessage(cmd);
+        window.webkit.messageHandlers?.bleSendCmdList.postMessage(cmd);
       } else {
         throw new Error('Bridge BLE no disponible');
       }
@@ -268,21 +282,6 @@
     const snap = lastFrames.slice();
     await window.transferAnimationFull(snap, fps, perChunkDelayMs);
   };
-    
-    // send in 16 chunks of 128 bytes via bridge or webkit
-    for(let part=0; part<16; part++){
-      const chunk = oledBytes.slice(part * 128, (part+1) * 128);
-      const hexData = Array.from(chunk).map(b => b.toString(16).padStart(2,'0')).join('');
-      const cmd = `810F00000000${part.toString(16).padStart(2,'0')}${hexData},-`;
-      try{
-        if(window.bridge && typeof window.bridge.bleSendCmdList === 'function') window.bridge.bleSendCmdList(cmd);
-        else if(window.webkit?.messageHandlers?.bleSendCmdList) window.webkit.messageHandlers.bleSendCmdList.postMessage(cmd);
-        statusEl.innerText = `Enviando: ${Math.round(((part+1)/16)*100)}%`;
-        await new Promise(r => setTimeout(r, 150));
-      }catch(e){ statusEl.innerText = '⚠️ Error en parte ' + (part+1); console.error(e); return; }
-    }
-    statusEl.innerText = '✅ ¡Enviado correctamente!';
-  }
 
   // --- Helpers para diseños/animaciones ---
   function padTo2048Bytes(hex) {
