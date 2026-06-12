@@ -979,3 +979,96 @@
   });
 
 })();
+
+
+// --- FIX: single-open single-close transfer and static-image handling ---
+(function(){
+  if(window._single_open_fix) return; window._single_open_fix = true;
+
+  // Config
+  const FRAME_BYTES = 2048;
+  const CHUNK_BYTES = 128;
+  const CHUNKS_PER_FRAME = FRAME_BYTES / CHUNK_BYTES; // 16
+
+  function cleanHex(s){ return String(s||'').replace(/[^0-9A-Fa-f]/g,'').toUpperCase(); }
+  function padToFrame(hex){ const FRAME_HEX_LEN = FRAME_BYTES*2; const h = cleanHex(hex); if(h.length>=FRAME_HEX_LEN) return h.substr(0,FRAME_HEX_LEN); return h.padEnd(FRAME_HEX_LEN,'0'); }
+  function buildChunksFromFrameHex(frameHex){ const padded = padToFrame(frameHex); const CHUNK_HEX_LEN = CHUNK_BYTES*2; const chunks = []; for(let i=0;i<padded.length;i+=CHUNK_HEX_LEN) chunks.push(padded.substr(i,CHUNK_HEX_LEN)); return chunks; }
+  function F7(e){ const F = e.toString(16).toUpperCase(); return F.length==1?('0'+F):F; }
+  function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
+  function lowLevelSend(cmd){ try{ if(typeof pt === 'function'){ pt(cmd); return; } }catch(e){}
+    try{ if(window.bridge && typeof window.bridge.bleSendCmdList === 'function'){ window.bridge.bleSendCmdList(cmd); return; } }catch(e){}
+    try{ if(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.bleSendCmdList && typeof window.webkit.messageHandlers.bleSendCmdList.postMessage === 'function'){ window.webkit.messageHandlers.bleSendCmdList.postMessage(cmd); return; } }catch(e){}
+    console.warn('No native bridge available for BLE send: ', cmd);
+  }
+  function setStatus(msg){ try{ const el=document.getElementById('status'); if(el) el.innerText = msg; }catch(e){} console.log('[SINGLE_OPEN]', msg); }
+
+  // Guard to prevent nested transfers
+  window._transferInProgress = window._transferInProgress || false;
+
+  // Single-open single-close bulk transfer: opens once, sends everything, closes once.
+  window.transferSingleOpenAllFrames = async function(opts){
+    if(window._transferInProgress){ setStatus('Transfer ya en progreso, espera...'); return; }
+    opts = opts || {};
+    const perChunkDelay = typeof opts.perChunkDelay === 'number' ? opts.perChunkDelay : 80;
+    const perFinalDelay = typeof opts.perFinalDelay === 'number' ? opts.perFinalDelay : 200;
+    const partIndexMode = opts.partIndexMode || 'zero'; // 'zero' => 0..15, 'one' => 1..16
+
+    let frames = [];
+    if(Array.isArray(window.lastFrames) && window.lastFrames.length>0) frames = window.lastFrames.slice();
+    else if(window.MIS_ANIMATIONS){ const k=Object.keys(window.MIS_ANIMATIONS)[0]; if(k) frames = window.MIS_ANIMATIONS[k].slice(); }
+    if(!frames || frames.length===0){ setStatus('No hay frames para enviar.'); return; }
+
+    frames = frames.map(f=>padToFrame(f));
+    const numFrames = frames.length;
+    const e_hex = (numFrames-1).toString(16).toUpperCase().padStart(4,'0');
+
+    try{
+      window._transferInProgress = true;
+      setStatus(`Inicio transferencia: frames=${numFrames} chunksPerFrame=${CHUNKS_PER_FRAME} mode=${partIndexMode}`);
+
+      // OPEN once
+      lowLevelSend('8110,-');
+      await sleep(150);
+
+      for(let f=0; f<numFrames; f++){
+        const F_hex = (f).toString(16).toUpperCase().padStart(4,'0');
+        const chunks = buildChunksFromFrameHex(frames[f]);
+        setStatus(`Enviando frame ${f+1}/${numFrames} (${chunks.length} chunks)`);
+
+        for(let ci=0; ci<chunks.length; ci++){
+          const part_val = (partIndexMode === 'one') ? (ci+1) : ci;
+          const part_hex = F7(part_val);
+          const cmd = `810F${e_hex}${F_hex}${part_hex}${chunks[ci]},-`;
+          lowLevelSend(cmd);
+          await sleep(perChunkDelay);
+        }
+
+        // no per-frame commit
+      }
+
+      // FINAL commit/close once
+      setStatus('Enviando commit final...');
+      lowLevelSend('8110,-');
+      await sleep(perFinalDelay);
+
+      setStatus('Transfer completado.');
+    }catch(err){ console.error('transfer error',err); setStatus('Error: '+(err&&err.message)); }
+    finally{ window._transferInProgress = false; }
+  };
+
+  // Ensure sendBtn only binds to the single-open transfer and remove other onclick handlers
+  window.addEventListener('DOMContentLoaded', ()=>{
+    try{
+      const sendBtn = document.getElementById('sendBtn');
+      if(sendBtn){
+        // remove inline handlers if present
+        try{ sendBtn.onclick = null; }catch(e){}
+        // remove other listeners by cloning
+        const newBtn = sendBtn.cloneNode(true);
+        sendBtn.parentNode.replaceChild(newBtn, sendBtn);
+        newBtn.addEventListener('click', async (ev)=>{ ev&&ev.preventDefault&&ev.preventDefault(); try{ await window.transferSingleOpenAllFrames({perChunkDelay:80, perFinalDelay:200, partIndexMode:'zero'}); }catch(e){ console.error(e); } }, {passive:false});
+      }
+    }catch(e){ console.error(e); }
+  });
+
+})();
