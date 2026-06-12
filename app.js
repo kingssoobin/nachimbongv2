@@ -907,3 +907,75 @@
   });
 
 })();
+
+
+// --- BULK SINGLE-SHOT UPLOAD: open once, send all frames (all chunks), close once ---
+(function(){
+  if(window._bulk_single_shot_patch) return; window._bulk_single_shot_patch = true;
+
+  function cleanHex(s){ return String(s||'').replace(/[^0-9A-Fa-f]/g,'').toUpperCase(); }
+  function padToFrame(hex){ const FRAME_HEX_LEN = 2048*2; const h = cleanHex(hex); if(h.length>=FRAME_HEX_LEN) return h.substr(0,FRAME_HEX_LEN); return h.padEnd(FRAME_HEX_LEN,'0'); }
+  function buildChunksFromFrameHex(frameHex){ const padded = padToFrame(frameHex); const CHUNK_HEX_LEN = 128*2; const chunks = []; for(let i=0;i<padded.length;i+=CHUNK_HEX_LEN) chunks.push(padded.substr(i,CHUNK_HEX_LEN)); return chunks; }
+  function F7(e){ const F = e.toString(16).toUpperCase(); return F.length==1?('0'+F):F; }
+  function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
+  function lowLevelSend(cmd){ try{ if(typeof pt === 'function'){ pt(cmd); return; } }catch(e){}
+    try{ if(window.bridge && typeof window.bridge.bleSendCmdList === 'function'){ window.bridge.bleSendCmdList(cmd); return; } }catch(e){}
+    try{ if(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.bleSendCmdList && typeof window.webkit.messageHandlers.bleSendCmdList.postMessage === 'function'){ window.webkit.messageHandlers.bleSendCmdList.postMessage(cmd); return; } }catch(e){}
+    console.warn('No native bridge available for BLE send: ', cmd);
+  }
+  function setStatus(msg){ try{ const el=document.getElementById('status'); if(el) el.innerText = msg; }catch(e){} console.log('[BULK]', msg); }
+
+  // Single-shot bulk upload: open once, send all frames, then commit once.
+  window.transferBulkFramesSingleShot = async function(opts){
+    opts = opts || {};
+    const perChunkDelay = typeof opts.perChunkDelay === 'number' ? opts.perChunkDelay : 80;
+    const perFinalDelay = typeof opts.perFinalDelay === 'number' ? opts.perFinalDelay : 200;
+
+    // fetch frames
+    let frames = [];
+    if(Array.isArray(window.lastFrames) && window.lastFrames.length>0) frames = window.lastFrames.slice();
+    else if(window.MIS_ANIMATIONS){ const k=Object.keys(window.MIS_ANIMATIONS)[0]; if(k) frames = window.MIS_ANIMATIONS[k].slice(); }
+    if(!frames || frames.length===0){ setStatus('No hay frames para enviar.'); return; }
+
+    // pad frames to 2048 bytes
+    frames = frames.map(f=>padToFrame(f));
+    const numFrames = frames.length;
+    const e_hex = (numFrames-1).toString(16).toUpperCase().padStart(4,'0');
+
+    setStatus(`Bulk upload: frames=${numFrames} perChunkDelay=${perChunkDelay}ms`);
+
+    // OPEN door once - use 8110,- as prep (matches native behavior in many places)
+    lowLevelSend('8110,-');
+    await sleep(150);
+
+    for(let f=0; f<numFrames; f++){
+      const F_hex = (f).toString(16).toUpperCase().padStart(4,'0');
+      const chunks = buildChunksFromFrameHex(frames[f]);
+      setStatus(`Bulk: enviando frame ${f+1}/${numFrames} (${chunks.length} chunks)`);
+      for(let ci=0; ci<chunks.length; ci++){
+        const part_hex = F7(ci); // parts 0..15
+        const cmd = `810F${e_hex}${F_hex}${part_hex}${chunks[ci]},-`;
+        lowLevelSend(cmd);
+        await sleep(perChunkDelay);
+      }
+    }
+
+    // FINAL commit/close once
+    setStatus('Bulk: enviando commit final...');
+    lowLevelSend('8110,-');
+    await sleep(perFinalDelay);
+
+    setStatus('Bulk upload completado. Revisa la OLED.');
+  };
+
+  // Attach send button to bulk single-shot by default
+  window.addEventListener('DOMContentLoaded', ()=>{
+    try{
+      const sendBtn = document.getElementById('sendBtn');
+      if(sendBtn){ try{ sendBtn.removeAttribute && sendBtn.removeAttribute('onclick'); }catch(e){}
+        sendBtn.addEventListener('click', async (ev)=>{ ev&&ev.preventDefault&&ev.preventDefault(); try{ await window.transferBulkFramesSingleShot({perChunkDelay:80, perFinalDelay:200}); }catch(e){ console.error(e); } }, {passive:false});
+      }
+    }catch(e){ console.error(e); }
+  });
+
+})();
