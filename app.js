@@ -782,3 +782,128 @@
     }catch(e){}
   });
 })();
+
+
+// --- ULTIMATE PATCH: full-compatible transfer (tries official tA format + multiple chunk ordering modes + reconnection helpers) ---
+(function(){
+  if(window._ultimate_oled_patch) return; window._ultimate_oled_patch = true;
+  const STATUS_ID = 'status';
+  const FRAME_BYTES = 2048; // bytes per frame
+  const CHUNK_BYTES = 128; // bytes per chunk
+  const CHUNKS_PER_FRAME = FRAME_BYTES / CHUNK_BYTES; // 16
+
+  function setStatus(s){ try{ const el=document.getElementById(STATUS_ID); if(el) el.innerText = s; }catch(e){} console.log('[OLED_PATCH]', s); }
+  function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
+  function cleanHex(s){ return String(s||'').replace(/[^0-9A-Fa-f]/g,'').toUpperCase(); }
+  function padToFrame(hex){ const FRAME_HEX_LEN = FRAME_BYTES*2; const h = cleanHex(hex); if(h.length>=FRAME_HEX_LEN) return h.substr(0,FRAME_HEX_LEN); return h.padEnd(FRAME_HEX_LEN,'0'); }
+  function buildChunksFromFrameHex(frameHex){ const padded = padToFrame(frameHex); const CHUNK_HEX_LEN = CHUNK_BYTES*2; const chunks = []; for(let i=0;i<padded.length;i+=CHUNK_HEX_LEN) chunks.push(padded.substr(i,CHUNK_HEX_LEN)); return chunks; }
+  function F7(e){ const F = e.toString(16).toUpperCase(); return F.length==1?('0'+F):F; }
+
+  // Send command using pt() if available, otherwise call native bridge directly
+  function lowLevelSend(cmd){ try{ if(typeof pt === 'function'){ pt(cmd); return; } }catch(e){}
+    try{ if(window.bridge && typeof window.bridge.bleSendCmdList === 'function'){ window.bridge.bleSendCmdList(cmd); return; } }catch(e){}
+    try{ if(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.bleSendCmdList && typeof window.webkit.messageHandlers.bleSendCmdList.postMessage === 'function'){ window.webkit.messageHandlers.bleSendCmdList.postMessage(cmd); return; } }catch(e){}
+    console.warn('No native bridge available for BLE send: ', cmd);
+  }
+
+  // Ensure BLE connection state resets properly (for WebBluetooth fallback scenarios)
+  try{
+    if(window.state && window.state.bleDev && window.state.bleDev.gatt && !window._oled_gatt_listener){
+      window._oled_gatt_listener = true;
+      window.state.bleDev.addEventListener && window.state.bleDev.addEventListener('gattserverdisconnected', ()=>{
+        window.state.bleChr = null; setStatus('BLE disconnected');
+      });
+    }
+  }catch(e){}
+
+  // Core: send one full animation using a single mode
+  async function sendAnimationWithMode(frames, mode, perChunkDelay = 80, perFrameDelay = 100){
+    // mode: 'zero', 'one', 'reverse-zero', 'reverse-one'
+    const numFrames = frames.length;
+    const e_hex = (numFrames-1).toString(16).toUpperCase().padStart(4,'0');
+
+    setStatus(`Modo: ${mode}. Frames=${numFrames}. chunkDelay=${perChunkDelay}ms`);
+
+    // initial prep
+    lowLevelSend('8110,-');
+    await sleep(120);
+
+    for(let f=0; f<numFrames; f++){
+      const frameHex = padToFrame(frames[f]);
+      const chunks = buildChunksFromFrameHex(frameHex);
+      const F_hex = (f).toString(16).toUpperCase().padStart(4,'0');
+      setStatus(`Modo ${mode}: enviando frame ${f+1}/${numFrames} (${chunks.length} chunks)`);
+
+      const order = [];
+      for(let i=0;i<chunks.length;i++) order.push(i);
+      if(mode.indexOf('reverse')!==-1) order.reverse();
+
+      for(let idx=0; idx<order.length; idx++){
+        const ci = order[idx];
+        const partIndex = (mode.indexOf('one')!==-1) ? (ci+1) : ci; // 0..15 or 1..16
+        const part_hex = F7(partIndex);
+        const cmd = `810F${e_hex}${F_hex}${part_hex}${chunks[ci]},-`;
+        lowLevelSend(cmd);
+        await sleep(perChunkDelay);
+      }
+
+      // post-frame commit
+      lowLevelSend('8110,-');
+      await sleep(perFrameDelay);
+
+      setStatus(`Modo ${mode}: frame ${f+1}/${numFrames} enviado`);
+    }
+
+    setStatus(`Modo ${mode}: animación enviada (completo)`).toString();
+  }
+
+  // Full automated runner: tries several modes sequentially until user stops
+  async function autoTryAllModes(frames, opts){
+    opts = opts || {};
+    const perChunkDelay = opts.perChunkDelay || 80;
+    const perFrameDelay = opts.perFrameDelay || 120;
+    const modes = ['zero','one','reverse-zero','reverse-one'];
+    setStatus('Inicio secuencia automatizada de modos: '+modes.join(', '));
+    for(let m of modes){
+      setStatus(`Intentando modo: ${m}`);
+      await sendAnimationWithMode(frames, m, perChunkDelay, perFrameDelay);
+      // small pause between modes to allow device to settle
+      setStatus(`Pausa tras modo ${m}...`);
+      await sleep(1000);
+    }
+    setStatus('Secuencia automatizada completada. Revisa la OLED.');
+  }
+
+  // Public API: transferCurrentAnimationUltimate
+  window.transferCurrentAnimationUltimate = async function(options){
+    options = options || {};
+    const perChunkDelay = options.perChunkDelay || 80;
+    const perFrameDelay = options.perFrameDelay || 120;
+    // gather frames
+    let frames = [];
+    if(Array.isArray(window.lastFrames) && window.lastFrames.length>0) frames = window.lastFrames.slice();
+    else if(window.MIS_ANIMATIONS){ const k=Object.keys(window.MIS_ANIMATIONS)[0]; if(k) frames = window.MIS_ANIMATIONS[k].slice(); }
+    if(!frames || frames.length===0){ setStatus('No hay frames para enviar.'); return; }
+
+    // Normalize frames to hex strings of length FRAME_BYTES*2
+    frames = frames.map(f=>padToFrame(f));
+
+    // Run official single-mode first (zero), then auto if needed
+    try{
+      setStatus('Enviando en modo oficial (0..15)');
+      await sendAnimationWithMode(frames, 'zero', perChunkDelay, perFrameDelay);
+      setStatus('Modo oficial completado. Si no funciona, ejecutar autoTryAllModes con más opciones.');
+    }catch(err){ console.error('transfer error',err); setStatus('Error durante envio: '+(err&&err.message)); }
+  };
+
+  // convenience: attach to sendBtn (will call transferCurrentAnimationUltimate with conservative defaults)
+  window.addEventListener('DOMContentLoaded', ()=>{
+    try{
+      const sendBtn = document.getElementById('sendBtn');
+      if(sendBtn){ try{ sendBtn.removeAttribute && sendBtn.removeAttribute('onclick'); }catch(e){}
+        sendBtn.addEventListener('click', async (ev)=>{ ev&&ev.preventDefault&&ev.preventDefault(); try{ await window.transferCurrentAnimationUltimate({perChunkDelay:80, perFrameDelay:120}); }catch(e){ console.error(e); } }, {passive:false});
+      }
+    }catch(e){ console.error(e); }
+  });
+
+})();
