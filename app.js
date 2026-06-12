@@ -640,3 +640,108 @@
     } catch(e) { /* ignore */ }
   });
 })();
+
+
+// --- ENHANCED: transferCurrentAnimation patch for Android (window.bridge) ---
+(function(){
+  // if original exists, keep a backup
+  try {
+    if(window.transferCurrentAnimation && !window._patched_transferCurrentAnimation) {
+      window._orig_transferCurrentAnimation = window.transferCurrentAnimation;
+    }
+  } catch(e) {}
+
+  window._patched_transferCurrentAnimation = true;
+
+  window.transferCurrentAnimation = async function(fps = 8, perChunkDelayMs = 250, perFrameDelayMs = 200) {
+    const statusEl = document.getElementById('status');
+    function setStatus(t){ try{ if(statusEl) statusEl.innerText = t; }catch(e){} }
+
+    if (!Array.isArray(window.lastFrames) || window.lastFrames.length === 0) {
+      setStatus('No hay animación cargada.');
+      return;
+    }
+
+    const frames = window.lastFrames.slice(); // snapshot
+    setStatus('Preparando envío de animación...');
+
+    // send reset/prep command to bridge (Android)
+    try {
+      if(window.bridge && typeof window.bridge.bleSendCmdList === 'function'){
+        try{ window.bridge.bleSendCmdList('8110,-'); }catch(e){ /* ignore */ }
+      } else if(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.bleSendCmdList){
+        try{ window.webkit.messageHandlers.bleSendCmdList.postMessage('8110,-'); }catch(e){}
+      }
+    } catch(e) {}
+    await new Promise(r => setTimeout(r, 500));
+
+    const totalFrames = frames.length;
+    const frameIntervalMs = Math.max(1, Math.round(1000 / Math.max(1, fps)));
+
+    // helper to send a raw command via bridge or webkit
+    async function sendCmdRaw(cmd){
+      try{
+        if(window.bridge && typeof window.bridge.bleSendCmdList === 'function'){
+          window.bridge.bleSendCmdList(cmd);
+        } else if(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.bleSendCmdList && typeof window.webkit.messageHandlers.bleSendCmdList.postMessage === 'function'){
+          window.webkit.messageHandlers.bleSendCmdList.postMessage(cmd);
+        } else {
+          throw new Error('Bridge no disponible');
+        }
+      } catch(e){ console.error('sendCmdRaw error', e); throw e; }
+      await new Promise(r=>setTimeout(r, perChunkDelayMs));
+    }
+
+    // buildChunksFromFrameHex helper (in case original not present)
+    function padTo2048Bytes(hex) {
+      if (!hex) return '00'.repeat(2048);
+      const cleaned = String(hex).replace(/[^0-9A-Fa-f]/g,'');
+      const needed = 2048*2 - cleaned.length;
+      if (needed <= 0) return cleaned.substr(0, 2048*2).toUpperCase();
+      return (cleaned + '0'.repeat(needed)).toUpperCase();
+    }
+    function buildChunksFromFrameHex(frameHex){
+      const clean = String(frameHex || '').replace(/[^0-9A-Fa-f]/g,'').toUpperCase();
+      const padded = padTo2048Bytes(clean);
+      const CHUNK_HEX_LEN = 128 * 2; // 256 hex chars
+      const chunks = [];
+      for (let i = 0; i < 2048 * 2; i += CHUNK_HEX_LEN) {
+        chunks.push(padded.substr(i, CHUNK_HEX_LEN));
+      }
+      return chunks; // length should be 16
+    }
+
+    try{
+      for(let fi=0; fi<totalFrames; fi++){
+        const frameHex = padTo2048Bytes(frames[fi]);
+        const chunks = buildChunksFromFrameHex(frameHex);
+        const start = Date.now();
+
+        setStatus(`Enviando frame ${fi+1}/${totalFrames}...`);
+
+        for(let pi=0; pi<chunks.length; pi++){
+          const partHex = pi.toString(16).padStart(2,'0').toUpperCase();
+          const cmd = `810F00000000${partHex}${chunks[pi]},-`;
+          // send via bridge and wait perChunkDelayMs
+          await sendCmdRaw(cmd);
+        }
+
+        // after full frame, small pause to let device process
+        const elapsed = Date.now() - start;
+        const wait = Math.max(perFrameDelayMs, frameIntervalMs - elapsed);
+        if(wait>0) await new Promise(r=>setTimeout(r, wait));
+
+        setStatus(`Enviado ${fi+1}/${totalFrames} frames (${Math.round(((fi+1)/totalFrames)*100)}%)`);
+      }
+
+      setStatus('Animación enviada correctamente.');
+    } catch(err){
+      console.error('Error enviando animación', err);
+      setStatus('Error enviando animación: ' + (err && err.message ? err.message : err));
+      // try fallback: call original if available
+      if(window._orig_transferCurrentAnimation) {
+        try{ await window._orig_transferCurrentAnimation(fps, perChunkDelayMs); }catch(e){}
+      }
+    }
+  };
+})();
