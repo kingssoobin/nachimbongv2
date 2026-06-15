@@ -1,101 +1,40 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Nachimbong OLED Studio</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Press+Start+2P&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Nachimbong OLED Studio</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-
-<header class="topbar">
+  <header class="topbar">
     <div class="logo">OLED<span>STUDIO</span></div>
     <div id="bridgeBadge" class="bridge-badge">Desconectado</div>
-</header>
+  </header>
 
-<main>
+  <main>
     <div class="canvas-card">
-        <div class="canvas-header">
-            <span>128x128px</span>
-            <span>MONOCHROME OLED</span>
-        </div>
-        <div class="canvas-frame">
-            <canvas id="canvas" width="128" height="128"></canvas>
-        </div>
-        <div class="toolbar">
-            <button class="tool" onclick="clearCanvas()" title="Limpiar">🧹</button>
-            <button class="tool" onclick="resetDevice()" title="Reiniciar">🔁</button>
-        </div>
-    </div>
-
-    <div class="card">
-        <h3>✏️ Editor de Texto</h3>
-        <div class="input-group">
-            <button class="btn-sec line-btn active" onclick="setLines(1, this)">1L</button>
-            <button class="btn-sec line-btn" onclick="setLines(2, this)">2L</button>
-            <button class="btn-sec line-btn" onclick="setLines(3, this)">3L</button>
-        </div>
-
-        <div class="line-inputs" style="margin-bottom: 15px;">
-            <input type="text" id="line1" placeholder="Línea 1..." maxlength="20" style="margin-bottom:5px">
-            <input type="text" id="line2" placeholder="Línea 2..." maxlength="20" class="hidden" style="margin-bottom:5px">
-            <input type="text" id="line3" placeholder="Línea 3..." maxlength="20" class="hidden">
-        </div>
-
-        <h3>Fuente</h3>
-        <div class="font-grid">
-            <button class="font-btn active" data-font="Arial" onclick="selectFont(this)">Arial</button>
-            <button class="font-btn" data-font="serif" onclick="selectFont(this)">Serif</button>
-            <button class="font-btn" data-font="'Press Start 2P'" onclick="selectFont(this)">Pixel</button>
-            <button class="font-btn" data-font="'Pacifico'" onclick="selectFont(this)">Pacifico</button>
-        </div>
-
-        <div class="size-row" style="margin-top:15px">
-            <input type="range" id="fontSize" min="8" max="60" value="24" oninput="document.getElementById('sizeVal').innerText=this.value">
-            <span id="sizeVal">24</span>px
-        </div>
-
-        <button class="btn-main" onclick="applyText()" style="margin-top:15px">Aplicar Texto</button>
-    </div>
-
-    <div class="card">
-        <h3>😀 Emojis</h3>
-        <div class="input-group">
-            <button class="btn-sec emoji-tab active" onclick="showEmojiCat('fav', this)">⭐</button>
-            <button class="btn-sec emoji-tab" onclick="showEmojiCat('faces', this)">🙂</button>
-            <button class="btn-sec emoji-tab" onclick="showEmojiCat('nature', this)">🌿</button>
-        </div>
-        <div class="emoji-grid" id="emojiGrid" style="margin-top:10px"></div>
+      <div class="canvas-header"><span>128x128px</span><span>MONOCHROME OLED</span></div>
+      <div class="canvas-frame">
+        <canvas id="canvas" width="128" height="128"></canvas>
+      </div>
     </div>
 
     <div class="send-card">
-        <button id="sendBtn" class="btn-main glow" onclick="transferOled()">📡 Enviar al Nachimbong</button>
-        <button id="wolfBtn" class="btn-sec" onclick="loadDesign('wolfchan_mexa')" style="margin-top:10px; width:100%">Wolfchan Mexa</button>
-        <button id="bangchanBtn" class="btn-sec" onclick="loadDesign('bangchan_an01')" style="margin-top:10px; width:100%">Bangchan AN01</button>
-        <button class="btn-sec" onclick="initBT()" style="margin-top:10px; width:100%">🔄 Reconectar Bluetooth</button>
-        <div style="margin-top:10px; display:flex; gap:8px; align-items:center;">
-            <label for="renderMode" style="color:var(--text-mut); font-size:12px; margin-right:6px">Modo vista:</label>
-            <select id="renderMode" style="padding:8px; border-radius:8px; background:#0d1117; color:var(--text); border:1px solid var(--border)">
-                <option value="standard">Estándar</option>
-                <option value="revbit">Bits invertidos</option>
-                <option value="transpose">Transponer (rotar)</option>
-                <option value="invert">Invertir colores</option>
-            </select>
-            <button id="applyRenderMode" class="btn-sec" style="padding:8px 12px;">Probar modo</button>
-        </div>
-        <div id="status" class="console-log" style="margin-top:15px">Listo para conectar...</div>
+      <button id="wolfBtn" class="btn-main glow">Wolfchan Mexa (Mostrar + Enviar)</button>
+      <button id="bangchanBtn" class="btn-main" style="margin-top:10px">Bangchan AN01 (Animación + Enviar)</button>
+      <div style="margin-top:12px">
+        <button id="initBTBtn" class="btn-sec">🔄 Reconectar Bluetooth (bridge)</button>
+      </div>
+      <div id="status" class="console-log" style="margin-top:12px">Listo para conectar...</div>
     </div>
-</main>
+  </main>
 
-<footer>SKZ NACHIMBONG V2 • OLED STUDIO</footer>
+  <footer>SKZ NACHIMBONG V2 • OLED STUDIO</footer>
 
-<!-- diseño incorporado -->
-<script src="wolfchan_mexa.js"></script>
-<script src="bangchan_an01.js"></script>
-<!-- app logic -->
-<script src="conect.js"></script>
-<script src="app.js"></script>
+  <script src="wolfchan_mexa.js"></script>
+  <script src="bangchan_an01.js"></script>
+  <script src="conect.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
