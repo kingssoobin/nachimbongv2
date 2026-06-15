@@ -53,19 +53,21 @@
 
   // LINES
   function setLines(n, btn){
-    numLines = n;
-    document.querySelectorAll('.line-btn').forEach(b => b.classList.remove('active'));
-    if(btn) btn.classList.add('active');
-    const r1 = document.getElementById('row1');
-    const r2 = document.getElementById('row2');
-    const r3 = document.getElementById('row3');
-    if(r1) r1.classList.toggle('hidden', false);
-    if(r2) r2.classList.toggle('hidden', n < 2);
-    if(r3) r3.classList.toggle('hidden', n < 3);
-    const sizeMap = {1:28, 2:22, 3:16};
-    const fs = document.getElementById('fontSize');
-    if(fs){ fs.value = sizeMap[n] || 24; document.getElementById('sizeVal').innerText = fs.value; }
-  }
+  numLines = n;
+  document.querySelectorAll('.line-btn').forEach(b => b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  // show/hide the actual input elements used in index.html
+  const l1 = document.getElementById('line1');
+  const l2 = document.getElementById('line2');
+  const l3 = document.getElementById('line3');
+  if(l1) l1.classList.toggle('hidden', false);
+  if(l2) l2.classList.toggle('hidden', n < 2);
+  if(l3) l3.classList.toggle('hidden', n < 3);
+  const sizeMap = {1:28, 2:22, 3:16};
+  const fs = document.getElementById('fontSize');
+  if(fs){ fs.value = sizeMap[n] || 24; const sv = document.getElementById('sizeVal'); if(sv) sv.innerText = fs.value; }
+}
+
 
   // FONTS
   function selectFont(btn){
