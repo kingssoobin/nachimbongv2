@@ -1,40 +1,36 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Nachimbong OLED Studio</title>
-  <link rel="stylesheet" href="styles.css" />
+  <title>Nachimbong OLED Studio — WebView (bridge only)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; margin: 16px; }
+    #top { display:flex; gap:12px; align-items:center; margin-bottom:12px; }
+    button { padding:8px 12px; font-size:15px; cursor:pointer; }
+    #status { font-size:14px; color:#333; }
+    canvas { border:1px solid #ccc; image-rendering: pixelated; display:block; margin-top:12px; }
+    #controls { margin-top:8px; display:flex; gap:8px; }
+  </style>
 </head>
 <body>
-  <header class="topbar">
-    <div class="logo">OLED<span>STUDIO</span></div>
-    <div id="bridgeBadge" class="bridge-badge">Desconectado</div>
-  </header>
+  <div id="top">
+    <h3>Nachimbong OLED Studio — WebView (bridge only)</h3>
+    <div id="status">Estado: inicializando...</div>
+  </div>
 
-  <main>
-    <div class="canvas-card">
-      <div class="canvas-header"><span>128x128px</span><span>MONOCHROME OLED</span></div>
-      <div class="canvas-frame">
-        <canvas id="canvas" width="128" height="128"></canvas>
-      </div>
-    </div>
+  <div id="controls">
+    <button id="btnWolf">wolfchan mexa</button>
+    <button id="btnBang">bangchan</button>
+  </div>
 
-    <div class="send-card">
-      <button id="wolfBtn" class="btn-main glow">Wolfchan Mexa (Mostrar + Enviar)</button>
-      <button id="bangchanBtn" class="btn-main" style="margin-top:10px">Bangchan AN01 (Animación + Enviar)</button>
-      <div style="margin-top:12px">
-        <button id="initBTBtn" class="btn-sec">🔄 Reconectar Bluetooth (bridge)</button>
-      </div>
-      <div id="status" class="console-log" style="margin-top:12px">Listo para conectar...</div>
-    </div>
-  </main>
+  <!-- canvas: ajusta tamaño si necesitas (aquí 128x64 por ejemplo) -->
+  <canvas id="oledCanvas" width="128" height="64"></canvas>
 
-  <footer>SKZ NACHIMBONG V2 • OLED STUDIO</footer>
-
-  <script src="wolfchan_mexa.js"></script>
+  <!-- Activos / diseños -->
+  <!-- Asegúrate de que wolfchan_mexa.png y bangchan_an01.js / wolfchan_mexa.js estén en la misma carpeta del HTML -->
   <script src="bangchan_an01.js"></script>
-  <script src="conect.js"></script>
+  <script src="wolfchan_mexa.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

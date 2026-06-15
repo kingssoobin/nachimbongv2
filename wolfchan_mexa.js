@@ -1,31 +1,13 @@
-// wolfchan_mexa.js - Adaptado al protocolo Bangchan
+// wolfchan_mexa.js — pequeño descriptor para el diseño wolfchan
+// Intenta no sobrescribir MIS_DISENOS si ya existe
 (function(){
-  // Si ya existían diseños en MIS_DISENOS_WOLFCHAN los normalizamos
-  if(window.MIS_DISENOS_WOLFCHAN && !window.WOLFCHAN_ANIMATIONS) {
-    // Asumimos la primera clave es el diseño principal
-    const keys = Object.keys(window.MIS_DISENOS_WOLFCHAN);
-    if(keys.length) {
-      window.WOLFCHAN_ANIMATIONS = {};
-      for(const k of keys) window.WOLFCHAN_ANIMATIONS[k] = window.MIS_DISENOS_WOLFCHAN[k].map(frameArr => {
-        // Si el frame viene como array de strings, unimos; si viene como string, lo dejamos
-        if(Array.isArray(frameArr)) return frameArr.join('');
-        return String(frameArr);
-      });
-    }
-  }
-
-  // Si no existe, definimos una plantilla con los frames descubiertos
-  if(!window.WOLFCHAN_ANIMATIONS) {
-    window.WOLFCHAN_ANIMATIONS = {
-      "wolfchan_mexa": [
-        "00000000000000000000000000000000000000000000000000000000000000000080E0F07838188CCCC4C6E6C6C79F1E38600000000000000080C0E0F0F8F8F8F8F8E0E0C08000000000000000000000C0383C9E8FC7E6E6C4CC8C183878F0E08080000000000000000000000000000000000000000000000000000000000000",
-        "000000000000000000000000000000000000000000000000000000000080E0F8FE3F0FC3F0FCFFFFFFFFFF7F7FFFFFFEF0C00378F0FCFCFEFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEF00000000C0F0F8FCFEFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFCF0C000000000000000000000000000000000000000000000000000000000",
-        "0000000000000000000000000000000000000000000000000000000000000000C0F0F8F8F0E0C0800000000000000080C0E0F0F0F0E0E0C080000000000000000000000183060C0C0C0C0800000000000000000000001030383C3E3E3E3F1F0F07030000000000000103070E1E1C1810000000000000000000000000000000000000",
-        "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000018181C0C0CCCDCECEECE7EF6F2620000000000000000000000000000000000103070E1C183870E0C080800000000000000000000000000000000000000000000"
-      ]
-    };
-  }
-
-  // Aseguramos listado de nombres
-  if(!window.WOLFCHAN_ANIMATIONS.__names) window.WOLFCHAN_ANIMATIONS.__names = Object.keys(window.WOLFCHAN_ANIMATIONS).filter(k=>k!=='__names');
+  // Si ya tienes una imagen local (wolfchan_mexa.png), el código de app.js cargará esa imagen por defecto.
+  // Aquí exponemos una ruta alternativa (si quieres cambiarla).
+  window.MIS_DISENOS = window.MIS_DISENOS || {};
+  window.MIS_DISENOS.wolfchan_mexa = window.MIS_DISENOS.wolfchan_mexa || {
+    // Si tienes la imagen embebida base64, puedes ponerla aquí en src.
+    // src: 'data:image/png;base64,...'
+    // o usar un archivo en la misma carpeta:
+    src: 'wolfchan_mexa.png'
+  };
 })();
