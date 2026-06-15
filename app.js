@@ -1038,3 +1038,67 @@
   });
 
 })();
+
+
+// --- ADICION: funciones para mostrar y enviar diseños por nombre (wolfchan / bangchan)
+(function(){
+  // Ajusta estos nombres si tus archivos exportan keys distintas
+  const WOLF_NAME = 'wolfchan_mexa';
+  const BANG_NAME = 'bangchan_an01';
+
+  window.loadAndShowDesignByName = function(name, mode = 'standard'){
+    try{
+      if(!name) return;
+      if(typeof window.loadDesign === 'function'){
+        window.loadDesign(name, mode);
+      } else {
+        console.warn('loadDesign no disponible');
+        const s = document.getElementById('status'); if(s) s.innerText = 'Función loadDesign no disponible';
+      }
+    }catch(e){ console.error('loadAndShowDesignByName', e); }
+  };
+
+  window.sendDesignByName = async function(name, fps = 8, perChunkDelayMs = 150){
+    try{
+      const s = document.getElementById('status');
+      if(!name){ if(s) s.innerText = 'Nombre de diseño inválido'; return; }
+      if(typeof getFramesForDesign !== 'function'){
+        if(s) s.innerText = 'Función getFramesForDesign no disponible';
+        return;
+      }
+      const frames = getFramesForDesign(name);
+      if(!frames || frames.length === 0){ if(s) s.innerText = 'No hay frames para: ' + name; return; }
+
+      // Preferir transferAnimationFull si existe
+      if(typeof window.transferAnimationFull === 'function'){
+        await window.transferAnimationFull(frames.slice(), fps, perChunkDelayMs);
+      } else if(typeof window.transferCurrentAnimation === 'function'){
+        // fallback: cargar la animación en preview y usar transferCurrentAnimation
+        window.loadDesign(name, 'standard');
+        await window.transferCurrentAnimation(Math.max(1, Math.round(1000 / fps)));
+      } else {
+        if(s) s.innerText = 'Función de transferencia no disponible';
+      }
+    }catch(err){ console.error('sendDesignByName error', err); const s = document.getElementById('status'); if(s) s.innerText = 'Error enviando: ' + (err && err.message?err.message:err); }
+  };
+
+  // Conectar botones cuando el DOM esté listo
+  window.addEventListener('DOMContentLoaded', ()=>{
+    try{
+      const showWolf = document.getElementById('showWolfchanBtn');
+      const showBang = document.getElementById('showBangchanBtn');
+      const sendWolf = document.getElementById('sendWolfchanBtn');
+      const sendBang = document.getElementById('sendBangchanBtn');
+
+      if(showWolf) showWolf.addEventListener('click', ()=>{ window.loadAndShowDesignByName(WOLF_NAME, 'standard'); });
+      if(showBang) showBang.addEventListener('click', ()=>{ window.loadAndShowDesignByName(BANG_NAME, 'standard'); });
+
+      if(sendWolf) sendWolf.addEventListener('click', async ()=>{ await window.sendDesignByName(WOLF_NAME, 8, 150); });
+      if(sendBang) sendBang.addEventListener('click', async ()=>{ await window.sendDesignByName(BANG_NAME, 8, 150); });
+
+      // reconectar si existe
+      const recon = document.getElementById('reconnectBtn');
+      if(recon) recon.addEventListener('click', ()=>{ try{ if(typeof window.initBT === 'function') window.initBT(); }catch(e){} });
+    }catch(e){ console.error('Error wiring wolf/bang buttons', e); }
+  });
+})();
