@@ -2,6 +2,8 @@
 -----
 Cómo descargar e instalar la aplicación `SKZ-V2-Mod.xapk`.
 
+Nota: La aplicación por el momento solo se encuentra disponible para Android
+
 Incluye pasos recomendados, instalación alternativa, verificación de integridad y solución de problemas.
 
 ### Tabla de contenidos
@@ -22,8 +24,6 @@ Incluye pasos recomendados, instalación alternativa, verificación de integrida
 ### Enlaces
 - Archivo a descargar: [SKZ-V2-Mod.xapk (Dropbox)](https://www.dropbox.com/scl/fi/3lumajk8hylsnmbj6922o/SKZ-V2-Mod.xapk?rlkey=0krf4xrr5g234azmy7cpp4rmj&st=ap6rjsh5&dl=1)
 - App recomendada para instalar XAPK: [Universal Manager (Play Store)](https://play.google.com/store/apps/details?id=com.universal.manager&hl=es)
-
-> Nota: Si publicas el proyecto en GitHub, considera añadir el hash SHA-256 oficial del XAPK bajo "Verificar integridad".
 
 ### Requisitos previos
 - Dispositivo Android (recomendado Android 8.0+).  
