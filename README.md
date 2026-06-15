@@ -9,9 +9,7 @@ Incluye pasos recomendados, instalación alternativa, verificación de integrida
 ### Tabla de contenidos
 - [Enlaces](#enlaces)
 - [Requisitos previos](#requisitos-previos)
-- [Instalación (método recomendado — Universal Manager)](#instalaci%C3%B3n-m%C3%A9todo-recomendado---universal-manager)
-- [Instalación alternativa (manual)](#instalaci%C3%B3n-alternativa-manual)
-- [Instalación por ADB (opcional)](#instalaci%C3%B3n-por-adb-opcional)
+- [Instalación (Universal Manager)](#instalaci%C3%B3n-universal-manager)
 - [Permisos y seguridad](#permisos-y-seguridad)
 - [Solución de problemas comunes](#soluci%C3%B3n-de-problemas-comunes)
 - [Desinstalación](#desinstalaci%C3%B3n)
@@ -31,7 +29,7 @@ Incluye pasos recomendados, instalación alternativa, verificación de integrida
 - Permitir instalaciones desde orígenes desconocidos para la aplicación que usarás.  
 - Opcional: PC con ADB si prefieres instalar desde ordenador.
 
-### Instalación (método recomendado — Universal Manager)
+### Instalación (Universal Manager)
 1. Instala Universal Manager desde Google Play mediante el enlace anterior.  
 2. Descarga `SKZ-V2-Mod.xapk` en el móvil (o en el PC y transfiérelo al móvil).  
 3. Abre Universal Manager y concede los permisos que solicite.  
@@ -40,26 +38,6 @@ Incluye pasos recomendados, instalación alternativa, verificación de integrida
 6. Al finalizar, abre la app para verificar que funciona correctamente.
 
 Consejo: si el sistema te pide permitir "Instalar apps desconocidas", otorga ese permiso a Universal Manager desde: Ajustes → Aplicaciones → Permisos especiales → Instalar apps desconocidas.
-
-### Instalación alternativa (manual)
-Si prefieres no usar Universal Manager:
-1. Cambia la extensión `.xapk` a `.zip` y extrae el contenido (muchos gestores de archivos lo permiten).  
-2. Dentro verás el/los APK(s) y quizás una carpeta `Android/obb/...` o `Android/data/...`.  
-3. Copia el(los) APK(s) al móvil e instala (habilita orígenes desconocidos).  
-4. Copia la(s) carpeta(s) OBB/data a:
-   - `/sdcard/Android/obb/<nombre.del.paquete>/` (para OBB)  
-   - `/sdcard/Android/data/<nombre.del.paquete>/` (para data, si aplica)  
-5. Abre la app.
-
-> Asegúrate de crear la carpeta con el nombre de paquete correcto (p. ej. `com.ejemplo.app`).
-
-### Instalación por ADB (opcional)
-Si tienes el APK separado y prefieres instalar desde un ordenador con ADB:
-```bash
-adb install -r path/to/app.apk
-adb push path/to/main.obb /sdcard/Android/obb/<package.name>/
-```
-Reemplaza `<package.name>` por el identificador real de la app.
 
 ### Permisos y seguridad
 - Instalar apps fuera de Play Store implica riesgos: instala solo desde fuentes confiables.  
