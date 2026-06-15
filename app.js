@@ -1117,3 +1117,129 @@
     if (recon) recon.addEventListener('click', () => window.initBT && window.initBT());
   });
 })();
+
+
+// ===== CLEAN PATCH: styled buttons + text/emoji send + implicit reset after send =====
+(function(){
+  const WOLF_NAME = 'wolfchan_mexa';
+  const BANG_NAME = 'bangchan_an01';
+  const RESET_DELAY_MS = 500;
+
+  const wait = (ms) => new Promise(r => setTimeout(r, ms));
+
+  function resetAfterSend() {
+    try {
+      if (typeof window.resetDevice === 'function') {
+        window.resetDevice();
+      }
+    } catch (e) {
+      console.warn('resetDevice failed', e);
+    }
+  }
+
+  function getResetButtonLike() {
+    return document.querySelector('button[onclick*="resetDevice"]')
+      || document.querySelector('button[title="Reiniciar"]')
+      || [...document.querySelectorAll('button')].find(b => (b.textContent || '').includes('🔁'))
+      || null;
+  }
+
+  // Ensure our handlers win over previous listeners from older patches
+  function replaceButton(btn) {
+    if (!btn || !btn.parentNode) return btn;
+    const clone = btn.cloneNode(true);
+    btn.parentNode.replaceChild(clone, btn);
+    return clone;
+  }
+
+  async function sendCurrentCanvasAndReset() {
+    try {
+      // If there is text in the editor, render it first; if not, keep the current canvas (emoji/draw).
+      if (typeof window.applyText === 'function') {
+        try { window.applyText(); } catch (e) { console.warn('applyText failed', e); }
+      }
+
+      if (typeof window.transferOled === 'function') {
+        await window.transferOled();
+      } else if (typeof window.transferSingleOpenAllFrames === 'function') {
+        await window.transferSingleOpenAllFrames({ perChunkDelay: 80, perFinalDelay: 200, partIndexMode: 'zero' });
+      } else if (typeof window.transferCurrentAnimation === 'function') {
+        await window.transferCurrentAnimation(80, 80);
+      }
+
+      await wait(RESET_DELAY_MS);
+      resetAfterSend();
+    } catch (e) {
+      console.error('sendCurrentCanvasAndReset error', e);
+      await wait(RESET_DELAY_MS);
+      resetAfterSend();
+    }
+  }
+
+  async function sendDesignAndReset(name) {
+    try {
+      if (typeof window.loadDesign === 'function') {
+        window.loadDesign(name, 'standard');
+        await wait(200);
+      }
+
+      if (typeof window.transferSingleOpenAllFrames === 'function') {
+        await window.transferSingleOpenAllFrames({ perChunkDelay: 80, perFinalDelay: 200, partIndexMode: 'zero' });
+      } else if (typeof window.transferAnimationFull === 'function') {
+        const frames = typeof getFramesForDesign === 'function' ? getFramesForDesign(name) : null;
+        if (frames && frames.length) {
+          await window.transferAnimationFull(frames.slice(), 8, 150);
+        }
+      } else if (typeof window.transferCurrentAnimation === 'function') {
+        await window.transferCurrentAnimation(80, 80);
+      }
+
+      await wait(RESET_DELAY_MS);
+      resetAfterSend();
+    } catch (e) {
+      console.error('sendDesignAndReset error', e);
+      await wait(RESET_DELAY_MS);
+      resetAfterSend();
+    }
+  }
+
+  window.addEventListener('DOMContentLoaded', () => {
+    try {
+      // Kill older send-button listeners by cloning the button once.
+      const sendBtn = replaceButton(document.getElementById('sendBtn'));
+      const reconnectBtn = replaceButton(document.getElementById('reconnectBtn'));
+
+      const showWolf = document.getElementById('showWolfchanBtn');
+      const showBang = document.getElementById('showBangchanBtn');
+      const sendWolf = document.getElementById('sendWolfchanBtn');
+      const sendBang = document.getElementById('sendBangchanBtn');
+
+      if (sendBtn) {
+        sendBtn.addEventListener('click', async (ev) => {
+          ev.preventDefault();
+          await sendCurrentCanvasAndReset();
+        }, { passive: false });
+      }
+
+      if (reconnectBtn) {
+        reconnectBtn.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          if (typeof window.initBT === 'function') window.initBT();
+        }, { passive: false });
+      }
+
+      if (showWolf) showWolf.addEventListener('click', () => { if (typeof window.loadDesign === 'function') window.loadDesign(WOLF_NAME, 'standard'); });
+      if (showBang) showBang.addEventListener('click', () => { if (typeof window.loadDesign === 'function') window.loadDesign(BANG_NAME, 'standard'); });
+      if (sendWolf) sendWolf.addEventListener('click', async () => { await sendDesignAndReset(WOLF_NAME); });
+      if (sendBang) sendBang.addEventListener('click', async () => { await sendDesignAndReset(BANG_NAME); });
+
+      // If the reset button itself is used manually, let it work normally.
+      const resetBtn = getResetButtonLike();
+      if (resetBtn && !resetBtn.dataset.boundKeepReset) {
+        resetBtn.dataset.boundKeepReset = '1';
+      }
+    } catch (e) {
+      console.error('clean patch init failed', e);
+    }
+  });
+})();
