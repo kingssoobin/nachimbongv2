@@ -56,15 +56,25 @@
     numLines = n;
     document.querySelectorAll('.line-btn').forEach(b => b.classList.remove('active'));
     if(btn) btn.classList.add('active');
-    const r1 = document.getElementById('row1');
-    const r2 = document.getElementById('row2');
-    const r3 = document.getElementById('row3');
-    if(r1) r1.classList.toggle('hidden', false);
-    if(r2) r2.classList.toggle('hidden', n < 2);
-    if(r3) r3.classList.toggle('hidden', n < 3);
+
+    // Show/hide the real inputs that exist in index.html
+    const line1 = document.getElementById('line1');
+    const line2 = document.getElementById('line2');
+    const line3 = document.getElementById('line3');
+    if(line1) line1.classList.remove('hidden');
+    if(line2) line2.classList.toggle('hidden', n < 2);
+    if(line3) line3.classList.toggle('hidden', n < 3);
+
     const sizeMap = {1:28, 2:22, 3:16};
     const fs = document.getElementById('fontSize');
     if(fs){ fs.value = sizeMap[n] || 24; document.getElementById('sizeVal').innerText = fs.value; }
+
+    // Focus the first visible line input
+    try {
+      const focusId = 'line' + Math.max(1, Math.min(n, 3));
+      const el = document.getElementById(focusId);
+      if (el) { el.focus(); el.select && el.select(); }
+    } catch (e) {}
   }
 
   // FONTS
@@ -77,13 +87,18 @@
 
   // TEXT
   function applyText(){
-    const lines = [
+    // Respect numLines even if some lines are empty, to preserve spacing for 2L/3L.
+    const rawLines = [
       document.getElementById('line1')?.value || '',
       document.getElementById('line2')?.value || '',
       document.getElementById('line3')?.value || ''
-    ].slice(0, numLines).filter(l => l.length > 0);
+    ];
+    const lines = rawLines.slice(0, numLines);
 
-    if(lines.length === 0){ statusEl.innerText = '⚠️ Escribe algo primero.'; return; }
+    if (lines.every(l => (l || '').trim() === '')) {
+      statusEl.innerText = '⚠️ Escribe algo primero.';
+      return;
+    }
 
     const size = parseInt(document.getElementById('fontSize')?.value || '24', 10);
     ctx.fillStyle = 'white';
@@ -96,7 +111,9 @@
     const startY = (128 - totalH) / 2 + lineHeight / 2;
 
     ctx.clearRect(0,0,128,128);
-    for (let i=0;i<lines.length;i++) ctx.fillText(lines[i], 64, startY + i * lineHeight);
+    for (let i=0;i<lines.length;i++) {
+      ctx.fillText(lines[i] || '', 64, startY + i * lineHeight);
+    }
     saveCanvas();
     statusEl.innerText = `✅ ${lines.length} línea(s) aplicada(s).`;
   }
