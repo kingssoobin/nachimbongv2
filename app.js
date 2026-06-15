@@ -1043,130 +1043,77 @@
 // --- 
 
 
-// ===== PATCH: invocar REINICIAR (🔁) IMPLÍCITO DESPUÉS DE CADA ENVÍO =====
+
+// ===== PATCH: LOGICA DE BOTONES, 1L/2L/3L Y RESET DESPUÉS DE ENVIAR =====
 (function(){
   const WOLF_NAME = 'wolfchan_mexa';
   const BANG_NAME = 'bangchan_an01';
-  const RESET_WAIT_MS = 400; // tiempo a esperar tras hacer click en RESET (ajusta si quieres)
+  const RESET_DELAY = 500;
 
-  function statusMsg(msg) {
-    try { const s = document.getElementById('status'); if (s) s.innerText = msg; } catch (e) {}
-  }
-
-  // Ejecuta resetDevice() si existe; si no, busca el botón con onclick="resetDevice()" o title="Reiniciar" o el emoji 🔁.
-  function triggerResetButtonAndWait() {
-    return new Promise((resolve) => {
-      try {
-        // 0) si existe la función global resetDevice, llamarla directamente
-        if (typeof window.resetDevice === 'function') {
-          try { window.resetDevice(); } catch(e) { console.warn('resetDevice() threw', e); }
-          return setTimeout(resolve, RESET_WAIT_MS);
-        }
-
-        // 1) buscar elemento con onclick que contenga resetDevice
-        const onclickEl = Array.from(document.querySelectorAll('[onclick]')).find(el => {
-          try { return (el.getAttribute('onclick') || '').includes('resetDevice'); } catch(e){return false}
-        });
-        if (onclickEl) { try { onclickEl.click(); } catch(e) { console.warn('click onclickEl failed', e); } return setTimeout(resolve, RESET_WAIT_MS); }
-
-        // 2) buscar por title="Reiniciar"
-        const titleEl = Array.from(document.querySelectorAll('[title]')).find(el => (el.getAttribute('title') || '').toLowerCase().includes('reiniciar'));
-        if (titleEl) { try { titleEl.click(); } catch(e){ console.warn('click titleEl failed', e); } return setTimeout(resolve, RESET_WAIT_MS); }
-
-        // 3) buscar botón con emoji 🔁
-        const buttons = Array.from(document.querySelectorAll('button'));
-        for (const b of buttons) {
-          if ((b.innerText || '').includes('🔁') || (b.textContent || '').includes('🔁')) {
-            try { b.click(); } catch(e){ console.warn('click emoji button failed', e); }
-            return setTimeout(resolve, RESET_WAIT_MS);
-          }
-        }
-
-        // 4) fallback: no encontrado
-        console.warn('triggerResetButtonAndWait: no se encontró botón de reinicio (🔁) ni función resetDevice().');
-        return resolve();
-      } catch (e) {
-        console.warn('triggerResetButtonAndWait error', e);
-        return resolve();
+  async function triggerReset() {
+    return new Promise(resolve => {
+      if (typeof window.resetDevice === 'function') {
+        window.resetDevice();
+      } else {
+        const btn = document.querySelector('button[onclick*="resetDevice"]') || [...document.querySelectorAll('button')].find(b => b.innerText.includes('🔁'));
+        if (btn) btn.click();
       }
+      setTimeout(resolve, RESET_DELAY);
     });
   }
 
-  // Enviar texto/emojis: aplica texto, envía, y luego dispara RESET
-  async function sendCurrentTextOrEmoji() {
-    try {
-      if (typeof window.applyText === 'function') {
-        await window.applyText();
-      }
-
-      if (typeof window.transferOled === 'function') {
-        await window.transferOled();
-      } else if (typeof window.transferCurrentAnimation === 'function') {
-        await window.transferCurrentAnimation(8, 150);
-      } else {
-        statusMsg('Función de envío no disponible');
-        return;
-      }
-
-      // --- Aquí: invocar RESET después del envío ---
-      await triggerResetButtonAndWait();
-    } catch (e) {
-      console.error('sendCurrentTextOrEmoji error', e);
-      statusMsg('Error enviando texto/emojis');
-      try { await triggerResetButtonAndWait(); } catch(_) {}
+  async function handleSendGlobal() {
+    // El boton original de enviar suele llamar a transferOled o transferCurrentAnimation.
+    // Primero nos aseguramos de que el texto actual esté "aplicado" al canvas/preview.
+    if (typeof window.applyText === 'function') {
+      window.applyText(); 
     }
+
+    // Ahora enviamos
+    if (typeof window.transferOled === 'function') {
+      await window.transferOled();
+    } else if (typeof window.transferCurrentAnimation === 'function') {
+      await window.transferCurrentAnimation(8, 150);
+    }
+
+    // Finalmente el RESET implicito despues de enviar
+    await triggerReset();
   }
 
-  // Enviar diseño por nombre: envía frames y luego dispara RESET
-  async function sendDesignByName(name) {
-    try {
-      if (typeof getFramesForDesign !== 'function') {
-        statusMsg('No se encontró getFramesForDesign');
-        return;
-      }
-      const frames = getFramesForDesign(name);
-      if (!frames || !frames.length) {
-        statusMsg('No hay frames para: ' + name);
-        return;
-      }
+  async function handleSendDesign(name) {
+    if (typeof getFramesForDesign !== 'function') return;
+    const frames = getFramesForDesign(name);
+    if (!frames || !frames.length) return;
 
-      if (typeof window.transferAnimationFull === 'function') {
-        await window.transferAnimationFull(frames.slice(), 8, 150);
-      } else if (typeof window.transferCurrentAnimation === 'function') {
-        window.loadDesign && window.loadDesign(name, 'standard');
-        await window.transferCurrentAnimation(8, 150);
-      } else {
-        statusMsg('Función de transferencia no disponible');
-        return;
-      }
-
-      // --- Aquí: invocar RESET después del envío ---
-      await triggerResetButtonAndWait();
-    } catch (e) {
-      console.error('sendDesignByName error', e);
-      statusMsg('Error enviando diseño');
-      try { await triggerResetButtonAndWait(); } catch(_) {}
+    if (typeof window.transferAnimationFull === 'function') {
+      await window.transferAnimationFull(frames.slice(), 8, 150);
+    } else if (typeof window.transferCurrentAnimation === 'function') {
+      if (window.loadDesign) window.loadDesign(name, 'standard');
+      await window.transferCurrentAnimation(8, 150);
     }
-  }
 
-  // helper para enlazar botones (si no lo tienes ya)
-  function bindButton(id, fn) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.addEventListener('click', (ev) => { ev.preventDefault(); fn(); });
+    await triggerReset();
   }
 
   window.addEventListener('DOMContentLoaded', () => {
+    // Vinculamos nuestros botones
     const sendBtn = document.getElementById('sendBtn');
-    if (sendBtn) sendBtn.addEventListener('click', async (ev) => { ev.preventDefault(); await sendCurrentTextOrEmoji(); });
+    if (sendBtn) {
+      // Reemplazamos el listener original o agregamos el nuestro
+      sendBtn.onclick = null; // Limpiar si tenia inline
+      sendBtn.addEventListener('click', (e) => { e.preventDefault(); handleSendGlobal(); });
+    }
 
-    bindButton('showWolfchanBtn', () => window.loadDesign && window.loadDesign(WOLF_NAME, 'standard'));
-    bindButton('showBangchanBtn', () => window.loadDesign && window.loadDesign(BANG_NAME, 'standard'));
-    bindButton('sendWolfchanBtn', () => sendDesignByName(WOLF_NAME));
-    bindButton('sendBangchanBtn', () => sendDesignByName(BANG_NAME));
-
-    // reconectar Bluetooth permanece separado (no lo tocamos)
+    const showWolf = document.getElementById('showWolfchanBtn');
+    const showBang = document.getElementById('showBangchanBtn');
+    const sendWolf = document.getElementById('sendWolfchanBtn');
+    const sendBang = document.getElementById('sendBangchanBtn');
     const recon = document.getElementById('reconnectBtn');
-    if (recon) recon.addEventListener('click', () => { try { if (typeof window.initBT === 'function') window.initBT(); } catch(e){} });
+
+    if (showWolf) showWolf.addEventListener('click', () => window.loadDesign && window.loadDesign(WOLF_NAME, 'standard'));
+    if (showBang) showBang.addEventListener('click', () => window.loadDesign && window.loadDesign(BANG_NAME, 'standard'));
+    if (sendWolf) sendWolf.addEventListener('click', () => handleSendDesign(WOLF_NAME));
+    if (sendBang) sendBang.addEventListener('click', () => handleSendDesign(BANG_NAME));
+    if (recon) recon.addEventListener('click', () => window.initBT && window.initBT());
   });
 })();
