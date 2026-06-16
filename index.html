@@ -7,48 +7,65 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <!-- --- Contenido principal de la página --- -->
-  <div id="app">
-    <!-- Aquí va tu editor, canvas, controles, etc. (no se tocó el resto) -->
-    <header>
-      <h1>Nachimbong v2</h1>
-    </header>
-
-    <main>
-      <!-- Panel de texto / líneas / visor / demás controles existentes -->
-      <section id="editor-area">
-        <!-- Conserva tu HTML actual para el editor de texto -->
-      </section>
-
-      <!-- Visor de animaciones / canvas -->
-      <section id="preview-area">
-        <canvas id="displayCanvas" width="64" height="32"></canvas>
-      </section>
-    </main>
+  <div class="topbar">
+    <div class="logo">Nachimbong <span>v2</span></div>
+    <div id="bridgeStatus" class="bridge-badge">Bridge</div>
   </div>
 
-  <!-- --- Botones principales al pie (mantengo la clase main-btn para estilos) --- -->
-  <footer id="bottom-buttons" class="controls">
-    <div class="btn-row">
-      <button id="showWolfchanBtn" class="main-btn">Mostrar Wolfchan Mexa</button>
-      <button id="sendWolfchanBtn" class="main-btn">Enviar Wolfchan Mexa</button>
+  <main>
+    <div class="canvas-card">
+      <div class="canvas-header">
+        <div>Preview</div>
+        <div id="canvasInfo">64x32</div>
+      </div>
+      <div class="canvas-frame">
+        <canvas id="canvas" width="256" height="128"></canvas>
+      </div>
     </div>
-    <div class="btn-row">
-      <button id="showBangchanBtn" class="main-btn">Mostrar Bangchan AN01</button>
-      <button id="sendBangchanBtn" class="main-btn">Enviar Bangchan AN01</button>
+
+    <div class="card">
+      <h3>Editor</h3>
+      <div class="input-group">
+        <input id="inputText" type="text" placeholder="Texto (1L / 2L / 3L)" />
+        <button id="applyTextBtn" class="btn-sec">Aplicar</button>
+      </div>
+
+      <div class="font-grid">
+        <button class="font-btn" data-font="1">1L</button>
+        <button class="font-btn" data-font="2">2L</button>
+        <button class="font-btn" data-font="3">3L</button>
+      </div>
     </div>
-    <div class="btn-row">
-      <button id="sendBtn" class="main-btn">Enviar al Nachimbong</button>
-      <button id="resetBtn" class="main-btn">🔁</button>
+
+    <div class="send-card">
+      <h3>Enviar</h3>
+      <div class="toolbar">
+        <button id="showWolfchanBtn" class="btn-sec">Mostrar Wolfchan Mexa</button>
+        <button id="sendWolfchanBtn" class="btn-main sendBtn" data-design="wolfchan_mexa">Enviar Wolfchan Mexa</button>
+        <button id="showBangchanBtn" class="btn-sec">Mostrar Bangchan AN01</button>
+        <button id="sendBangchanBtn" class="btn-main sendBtn" data-design="bangchan_an01">Enviar Bangchan AN01</button>
+      </div>
+
+      <div style="margin-top:12px; display:flex; gap:8px;">
+        <button id="sendBtn" class="btn-main sendBtn">Enviar al Nachimbong</button>
+        <button id="resetBtn" class="btn-sec">🔁</button>
+      </div>
+
+      <div style="margin-top:12px;">
+        <div id="status" class="console-log">Estado: listo</div>
+      </div>
     </div>
+  </main>
+
+  <footer>
+    Hecho con ❤️ — Nachimbong v2
   </footer>
 
-  <!-- --- SCRIPTS: Asegúrate que los JS de diseños se carguen ANTES de app.js --- -->
-  <!-- Por ejemplo: -->
+  <!-- Scripts: mantener el orden: diseños -> conect -> parches -> app -->
   <script src="bangchan_an01.js"></script>
   <script src="wolfchan_mexa.js"></script>
-
-  <!-- Tu app.js principal (reemplazar o mantener si ya existe; este es el corregido) -->
+  <script src="conect.js"></script>
+  <script src="send-buttons-patch.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
