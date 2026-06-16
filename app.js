@@ -9,7 +9,6 @@
   let isDrawing = false;
   let selectedFont = 'Arial';
   let numLines = 1;
-  let lastCanvasSource = 'clear'; // clear | text | emoji | draw | design
 
   // EMOJIS
   const emojiCats = {
@@ -49,7 +48,6 @@
     ctx.font = '90px Arial';
     ctx.fillText(emoji, 64, 68);
     saveCanvas();
-    lastCanvasSource = 'emoji';
     statusEl.innerText = 'Emoji cargado: ' + emoji;
   }
 
@@ -87,7 +85,7 @@
       document.getElementById('line3')?.value || ''
     ].slice(0, numLines).filter(l => l.length > 0);
 
-    if(lines.length === 0){ statusEl.innerText = '⚠️ Escribe algo primero.'; return false; }
+    if(lines.length === 0){ statusEl.innerText = '⚠️ Escribe algo primero.'; return; }
 
     const size = parseInt(document.getElementById('fontSize')?.value || '24', 10);
     ctx.fillStyle = 'white';
@@ -102,9 +100,7 @@
     ctx.clearRect(0,0,128,128);
     for (let i=0;i<lines.length;i++) ctx.fillText(lines[i], 64, startY + i * lineHeight);
     saveCanvas();
-    lastCanvasSource = 'text';
     statusEl.innerText = `✅ ${lines.length} línea(s) aplicada(s).`;
-    return true;
   }
 
   // CANVAS helper
@@ -115,7 +111,7 @@
     return { x: (clientX - rect.left) * (128 / rect.width), y: (clientY - rect.top) * (128 / rect.height) };
   }
 
-  canvas.addEventListener('pointerdown', (e) => { isDrawing = true; lastCanvasSource = 'draw'; draw(e); });
+  canvas.addEventListener('pointerdown', (e) => { isDrawing = true; draw(e); });
   window.addEventListener('pointerup', () => { if(isDrawing){ isDrawing = false; saveCanvas(); } });
   canvas.addEventListener('pointermove', draw);
 
@@ -129,10 +125,9 @@
   function clearCanvas(){
     try{ stopPreview(); }catch(e){}
     try{ previewIdx = 0; }catch(e){}
-    try{ lastFrames = []; window.lastFrames = []; lastFramesChunks = null; window._lastLoadedDesign = null; }catch(e){}
+    try{ lastFrames = []; lastFramesChunks = null; window._lastLoadedDesign = null; }catch(e){}
     try{ ctx.fillStyle = 'black'; ctx.fillRect(0,0,128,128); }catch(e){}
     saveCanvas();
-    lastCanvasSource = 'clear';
     try{ statusEl.innerText = 'Canvas limpiado.'; }catch(e){}
   }
   function saveCanvas(){ try{ localStorage.setItem('last_oled_img', canvas.toDataURL()); }catch(e){} }
@@ -504,7 +499,6 @@
       framesHex = framesHex.map(h => padTo2048Bytes(h));
 
       lastFrames = framesHex;
-      window.lastFrames = framesHex.slice();
       lastFramesChunks = null;
 
       let chosenMode = mode;
@@ -522,7 +516,6 @@
       }
 
       window._lastLoadedDesign = Array.isArray(nameOrArray) ? nameOrArray.join(',') : nameOrArray;
-      lastCanvasSource = 'design';
 
       // Si hay varios frames, reproducir animación
       if (framesHex.length > 1) {
@@ -1170,8 +1163,8 @@
 
   async function sendCurrentCanvasAndReset() {
     try {
-      // Solo auto-aplicar texto si no hay un emoji/dibujo/diseño ya cargado en canvas.
-      if (lastCanvasSource === 'clear' && typeof window.applyText === 'function') {
+      // If there is text in the editor, render it first; if not, keep the current canvas (emoji/draw).
+      if (typeof window.applyText === 'function') {
         try { window.applyText(); } catch (e) { console.warn('applyText failed', e); }
       }
 
