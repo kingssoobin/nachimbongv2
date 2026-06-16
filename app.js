@@ -10,7 +10,47 @@
   let selectedFont = 'Arial';
   let numLines = 1;
 
-  
+  // EMOJIS
+  const emojiCats = {
+    fav:     ['❤','⭐','⚡','🔥','👑','🐺','🌙','✨','🎵','💎','🦋','🌸','💫','🎀','🏆','🌈'],
+    faces:   ['😀','😍','🥰','😎','🤩','😭','😤','🥺','😂','🤣','😊','🙃','😏','🤔','😴','👻'],
+    nature:  ['🌸','🌺','🌻','🌹','🍀','🌿','🌊','🌋','🌙','☀️','⛅','❄️','🌈','🦋','🐺','🦊'],
+    objects: ['💎','🎵','🎶','🎸','🎹','🎤','🎧','🏆','🎯','🎲','🎮','📱','💻','🔮','⚔️','🛸'],
+    symbols: ['❤','🧡','💛','💚','💙','💜','🖤','🤍','♥','★','☆','♦','♣','♠','✦','✧']
+  };
+  let currentCat = 'fav';
+
+  function showEmojiCat(cat, btn){
+    currentCat = cat;
+    document.querySelectorAll('.emoji-tab').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    renderEmojis();
+  }
+
+  function renderEmojis(){
+    const grid = document.getElementById('emojiGrid');
+    if(!grid) return;
+    grid.innerHTML = '';
+    (emojiCats[currentCat] || []).forEach(em => {
+      const div = document.createElement('div');
+      div.className = 'emoji-item';
+      div.textContent = em;
+      div.onclick = () => loadEmoji(em);
+      grid.appendChild(div);
+    });
+  }
+
+  function loadEmoji(emoji){
+    clearCanvas();
+    ctx.fillStyle = 'white';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '90px Arial';
+    ctx.fillText(emoji, 64, 68);
+    saveCanvas();
+    statusEl.innerText = 'Emoji cargado: ' + emoji;
+  }
+
   // LINES
   function setLines(n, btn){
   numLines = n;
@@ -516,7 +556,7 @@
 
   // init on DOMContentLoaded
   window.addEventListener('DOMContentLoaded', () => {
-    
+    renderEmojis();
     const last = localStorage.getItem('last_oled_img');
     if(last){ const im = new Image(); im.onload = () => ctx.drawImage(im,0,0); im.src = last; } else { clearCanvas(); }
 
