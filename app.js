@@ -10,6 +10,48 @@
   let selectedFont = 'Arial';
   let numLines = 1;
 
+  // EMOJIS
+  const emojiCats = {
+    fav:     ['❤','⭐','⚡','🔥','👑','🐺','🌙','✨','🎵','💎','🦋','🌸','💫','🎀','🏆','🌈'],
+    faces:   ['😀','😍','🥰','😎','🤩','😭','😤','🥺','😂','🤣','😊','🙃','😏','🤔','😴','👻'],
+    nature:  ['🌸','🌺','🌻','🌹','🍀','🌿','🌊','🌋','🌙','☀️','⛅','❄️','🌈','🦋','🐺','🦊'],
+    objects: ['💎','🎵','🎶','🎸','🎹','🎤','🎧','🏆','🎯','🎲','🎮','📱','💻','🔮','⚔️','🛸'],
+    symbols: ['❤','🧡','💛','💚','💙','💜','🖤','🤍','♥','★','☆','♦','♣','♠','✦','✧']
+  };
+  let currentCat = 'fav';
+
+  function showEmojiCat(cat, btn){
+    currentCat = cat;
+    document.querySelectorAll('.emoji-tab').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    renderEmojis();
+  }
+
+  function renderEmojis(){
+    const grid = document.getElementById('emojiGrid');
+    if(!grid) return;
+    grid.innerHTML = '';
+    (emojiCats[currentCat] || []).forEach(em => {
+      const div = document.createElement('div');
+      div.className = 'emoji-item';
+      div.textContent = em;
+      div.onclick = () => loadEmoji(em);
+      grid.appendChild(div);
+    });
+  }
+
+  function loadEmoji(emoji){
+    clearCanvas();
+    ctx.fillStyle = 'white';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '90px Arial';
+    ctx.fillText(emoji, 64, 68);
+    saveCanvas();
+    statusEl.innerText = 'Emoji cargado: ' + emoji;
+  }
+
+  // LINES
   function setLines(n, btn){
   numLines = n;
   document.querySelectorAll('.line-btn').forEach(b => b.classList.remove('active'));
@@ -414,27 +456,7 @@
     return null;
   }
 
-  
-// --- Helper: load design and wait until frames are ready ---
-async function loadDesignAndWait(name, timeoutMs = 6000) {
-  try {
-    if (typeof loadDesign === 'function') {
-      try { loadDesign(name, 'standard'); } catch (e) { console.warn('loadDesign call failed', e); }
-    }
-    const start = Date.now();
-    while (Date.now() - start < timeoutMs) {
-      if (window._lastLoadedDesign && window._lastLoadedDesign === name) {
-        if (Array.isArray(window.lastFrames) && window.lastFrames.length > 0) return true;
-      }
-      if (Array.isArray(window.lastFrames) && window.lastFrames.length > 0) return true;
-      await new Promise(r => setTimeout(r, 120));
-    }
-    console.warn('loadDesignAndWait: timeout for', name);
-    return false;
-  } catch (e) { console.warn('loadDesignAndWait error', e); return false; }
-}
-
-// Heurística: prueba varios modos de interpretación de bits y elige el más "razonable"
+  // Heurística: prueba varios modos de interpretación de bits y elige el más "razonable"
   function pickBestModeForHex(hex){
     try{
       const bytes = hexToBytes(hex);
@@ -520,7 +542,8 @@ async function loadDesignAndWait(name, timeoutMs = 6000) {
   }
 
   // expose functions globally used by HTML
-    window.setLines = setLines;
+  window.showEmojiCat = showEmojiCat;
+  window.setLines = setLines;
   window.selectFont = selectFont;
   window.applyText = applyText;
   window.clearCanvas = clearCanvas;
@@ -533,7 +556,8 @@ async function loadDesignAndWait(name, timeoutMs = 6000) {
 
   // init on DOMContentLoaded
   window.addEventListener('DOMContentLoaded', () => {
-        const last = localStorage.getItem('last_oled_img');
+    renderEmojis();
+    const last = localStorage.getItem('last_oled_img');
     if(last){ const im = new Image(); im.onload = () => ctx.drawImage(im,0,0); im.src = last; } else { clearCanvas(); }
 
     document.getElementById('applyRenderMode')?.addEventListener('click', () => {
@@ -1138,33 +1162,93 @@ async function loadDesignAndWait(name, timeoutMs = 6000) {
   }
 
   async function sendCurrentCanvasAndReset() {
-  try {
-    // If there is text in the editor, render it first
-    if (typeof applyText === 'function') {
-      try { applyText(); } catch (e) { console.warn('applyText failed', e); }
-      // small delay to ensure canvas updated
-      await new Promise(r => setTimeout(r, 150));
-    }
-    // Prefer transferSingleOpenAllFrames or transferAnimationFull for stable transfer
-    if (typeof transferSingleOpenAllFrames === 'function') {
-      await transferSingleOpenAllFrames({ perChunkDelay: 80, perFinalDelay: 200, partIndexMode: 'zero' });
-    } else if (typeof transferAnimationFull === 'function') {
-      if (Array.isArray(lastFrames) && lastFrames.length) {
-        await transferAnimationFull(lastFrames.slice(), 8, 150);
-      } else {
-        await transferAnimationFull([], 8, 150);
+    try {
+      // If there is text in the editor, render it first; if not, keep the current canvas (emoji/draw).
+      if (typeof window.applyText === 'function') {
+        try { window.applyText(); } catch (e) { console.warn('applyText failed', e); }
       }
-    } else if (typeof transferCurrentAnimation === 'function') {
-      await transferCurrentAnimation(80, 80);
-    } else if (typeof transferOled === 'function') {
-      await transferOled();
+
+      if (typeof window.transferOled === 'function') {
+        await window.transferOled();
+      } else if (typeof window.transferSingleOpenAllFrames === 'function') {
+        await window.transferSingleOpenAllFrames({ perChunkDelay: 80, perFinalDelay: 200, partIndexMode: 'zero' });
+      } else if (typeof window.transferCurrentAnimation === 'function') {
+        await window.transferCurrentAnimation(80, 80);
+      }
+
+      await wait(RESET_DELAY_MS);
+      resetAfterSend();
+    } catch (e) {
+      console.error('sendCurrentCanvasAndReset error', e);
+      await wait(RESET_DELAY_MS);
+      resetAfterSend();
     }
-    // Wait a bit and reset device
-    await new Promise(r => setTimeout(r, 350));
-    try { if (typeof resetDevice === 'function') resetDevice(); } catch(e){ console.warn('resetDevice failed', e); }
-  } catch (e) {
-    console.error('sendCurrentCanvasAndReset error', e);
-    try { if (typeof resetDevice === 'function') resetDevice(); } catch(e){}
   }
-}
-)();
+
+  async function sendDesignAndReset(name) {
+    try {
+      if (typeof window.loadDesign === 'function') {
+        window.loadDesign(name, 'standard');
+        await wait(200);
+      }
+
+      if (typeof window.transferSingleOpenAllFrames === 'function') {
+        await window.transferSingleOpenAllFrames({ perChunkDelay: 80, perFinalDelay: 200, partIndexMode: 'zero' });
+      } else if (typeof window.transferAnimationFull === 'function') {
+        const frames = typeof getFramesForDesign === 'function' ? getFramesForDesign(name) : null;
+        if (frames && frames.length) {
+          await window.transferAnimationFull(frames.slice(), 8, 150);
+        }
+      } else if (typeof window.transferCurrentAnimation === 'function') {
+        await window.transferCurrentAnimation(80, 80);
+      }
+
+      await wait(RESET_DELAY_MS);
+      resetAfterSend();
+    } catch (e) {
+      console.error('sendDesignAndReset error', e);
+      await wait(RESET_DELAY_MS);
+      resetAfterSend();
+    }
+  }
+
+  window.addEventListener('DOMContentLoaded', () => {
+    try {
+      // Kill older send-button listeners by cloning the button once.
+      const sendBtn = replaceButton(document.getElementById('sendBtn'));
+      const reconnectBtn = replaceButton(document.getElementById('reconnectBtn'));
+
+      const showWolf = document.getElementById('showWolfchanBtn');
+      const showBang = document.getElementById('showBangchanBtn');
+      const sendWolf = document.getElementById('sendWolfchanBtn');
+      const sendBang = document.getElementById('sendBangchanBtn');
+
+      if (sendBtn) {
+        sendBtn.addEventListener('click', async (ev) => {
+          ev.preventDefault();
+          await sendCurrentCanvasAndReset();
+        }, { passive: false });
+      }
+
+      if (reconnectBtn) {
+        reconnectBtn.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          if (typeof window.initBT === 'function') window.initBT();
+        }, { passive: false });
+      }
+
+      if (showWolf) showWolf.addEventListener('click', () => { if (typeof window.loadDesign === 'function') window.loadDesign(WOLF_NAME, 'standard'); });
+      if (showBang) showBang.addEventListener('click', () => { if (typeof window.loadDesign === 'function') window.loadDesign(BANG_NAME, 'standard'); });
+      if (sendWolf) sendWolf.addEventListener('click', async () => { await sendDesignAndReset(WOLF_NAME); });
+      if (sendBang) sendBang.addEventListener('click', async () => { await sendDesignAndReset(BANG_NAME); });
+
+      // If the reset button itself is used manually, let it work normally.
+      const resetBtn = getResetButtonLike();
+      if (resetBtn && !resetBtn.dataset.boundKeepReset) {
+        resetBtn.dataset.boundKeepReset = '1';
+      }
+    } catch (e) {
+      console.error('clean patch init failed', e);
+    }
+  });
+})();
