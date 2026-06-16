@@ -15,6 +15,7 @@ Incluye pasos recomendados, instalación alternativa, verificación de integrida
 - [Desinstalación](#desinstalaci%C3%B3n)
 - [Soporte / Contacto](#soporte--contacto)
 - [Licencia y contribuciones](#licencia-y-contribuciones)
+- [Falsos positivos en VirusTotal](#falsos-positivos-en-virustotal)
 - [Changelog](#changelog)
 
 ---
@@ -40,8 +41,7 @@ Consejo: si el sistema te pide permitir "Instalar apps desconocidas", otorga ese
 
 ### Permisos y seguridad
 - Instalar apps fuera de Play Store implica riesgos: instala solo desde fuentes confiables.  
-- Revisa los permisos solicitados por la app al instalar y al ejecutar.  
-- Opcional: analiza el APK/XAPK con VirusTotal antes de instalar para detectar firmas maliciosas.
+- Revisa los permisos solicitados por la app al instalar y al ejecutar.
 
 ### Solución de problemas comunes
 - "Instalación fallida / Parse error": APK corrupto o no compatible con tu arquitectura (ARM vs ARM64).  
@@ -73,6 +73,14 @@ Este proyecto es una modificación de la app original que permite enviar imágen
 
 **Importante — derechos y responsabilidad**
 - El uso de esta modificación es bajo tu propia responsabilidad. No nos hacemos responsables por daños en hardware o software derivados de su uso.
+
+### Falsos positivos en VirusTotal
+
+Al analizar esta aplicación en VirusTotal, algunos motores antivirus podrían generar alertas o detecciones consideradas falsos positivos. Esto se debe a que el APK fue desarrollado a partir de la aplicación original, la cual utiliza una WebView para mostrar su contenido.
+
+Para implementar las modificaciones, fue necesario reemplazar la página web original por una versión modificada. Adicionalmente, para permitir que la aplicación original y esta versión puedan instalarse y ejecutarse simultáneamente en un mismo dispositivo, se realizaron cambios en el identificador del paquete (Package ID), el nombre de la aplicación y sus iconos.
+
+Debido a estas modificaciones, algunos motores de análisis pueden detectar diferencias respecto al APK original y generar advertencias automáticas. Sin embargo, dichas detecciones no implican necesariamente la presencia de código malicioso.
 
 ### Changelog
 - v1.0 — Versión inicial.
