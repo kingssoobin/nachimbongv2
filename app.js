@@ -125,7 +125,7 @@
   function clearCanvas(){
     try{ stopPreview(); }catch(e){}
     try{ previewIdx = 0; }catch(e){}
-    try{ lastFrames = []; lastFramesChunks = null; window._lastLoadedDesign = null; }catch(e){}
+    try{ lastFrames = []; window.lastFrames = []; lastFramesChunks = null; window._lastLoadedDesign = null; }catch(e){}
     try{ ctx.fillStyle = 'black'; ctx.fillRect(0,0,128,128); }catch(e){}
     saveCanvas();
     try{ statusEl.innerText = 'Canvas limpiado.'; }catch(e){}
@@ -499,6 +499,7 @@
       framesHex = framesHex.map(h => padTo2048Bytes(h));
 
       lastFrames = framesHex;
+      window.lastFrames = framesHex.slice();
       lastFramesChunks = null;
 
       let chosenMode = mode;
@@ -1218,10 +1219,10 @@
       const sendBtn = replaceButton(document.getElementById('sendBtn'));
       const reconnectBtn = replaceButton(document.getElementById('reconnectBtn'));
 
-      const showWolf = document.getElementById('showWolfchanBtn');
-      const showBang = document.getElementById('showBangchanBtn');
-      const sendWolf = document.getElementById('sendWolfchanBtn');
-      const sendBang = document.getElementById('sendBangchanBtn');
+      const showWolf = replaceButton(document.getElementById('showWolfchanBtn'));
+      const showBang = replaceButton(document.getElementById('showBangchanBtn'));
+      const sendWolf = replaceButton(document.getElementById('sendWolfchanBtn'));
+      const sendBang = replaceButton(document.getElementById('sendBangchanBtn'));
 
       if (sendBtn) {
         sendBtn.addEventListener('click', async (ev) => {
