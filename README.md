@@ -27,7 +27,6 @@ Incluye pasos recomendados, instalación alternativa, verificación de integrida
 - Dispositivo Android (recomendado Android 8.0+).  
 - Espacio libre suficiente (revisa el tamaño del XAPK antes de descargar).  
 - Permitir instalaciones desde orígenes desconocidos para la aplicación que usarás.  
-- Opcional: PC con ADB si prefieres instalar desde ordenador.
 
 ### Instalación (Universal Manager)
 1. Instala Universal Manager desde Google Play mediante el enlace anterior.  
