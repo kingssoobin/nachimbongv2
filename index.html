@@ -3,65 +3,94 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Nachimbong v2 - Editor</title>
+  <title>OLEDSTUDIO - Nachimbong v2</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <div class="topbar">
-    <div class="logo">Nachimbong <span>v2</span></div>
-    <div id="bridgeStatus" class="bridge-badge">Bridge</div>
+    <div class="logo">OLEDSTUDIO</div>
+    <div id="bridgeStatus" class="bridge-badge">Desconectado</div>
   </div>
 
   <main>
-    <div class="canvas-card">
+    <section class="canvas-card">
       <div class="canvas-header">
-        <div>Preview</div>
-        <div id="canvasInfo">64x32</div>
+        <div>128x128px</div>
+        <div class="canvas-info">MONOCHROME OLED</div>
       </div>
       <div class="canvas-frame">
-        <canvas id="canvas" width="256" height="128"></canvas>
+        <canvas id="canvas" width="128" height="128"></canvas>
       </div>
-    </div>
+      <div style="margin-top:8px; display:flex; gap:8px;">
+        <button id="clearBtn" class="btn-sec">🧹</button>
+        <button id="resetBtn" class="btn-sec">🔁</button>
+      </div>
+    </section>
 
-    <div class="card">
-      <h3>Editor</h3>
-      <div class="input-group">
-        <input id="inputText" type="text" placeholder="Texto (1L / 2L / 3L)" />
-        <button id="applyTextBtn" class="btn-sec">Aplicar</button>
+    <section class="card">
+      <h3>✏️ Editor de Texto</h3>
+
+      <div style="display:flex; gap:8px; margin-bottom:8px;">
+        <button class="line-btn" data-lines="1">1L</button>
+        <button class="line-btn" data-lines="2">2L</button>
+        <button class="line-btn" data-lines="3">3L</button>
       </div>
 
-      <div class="font-grid">
-        <button class="font-btn" data-font="1">1L</button>
-        <button class="font-btn" data-font="2">2L</button>
-        <button class="font-btn" data-font="3">3L</button>
+      <div style="margin-bottom:8px;">
+        <div>Fuente</div>
+        <div style="display:flex; gap:8px; margin-top:6px;">
+          <button class="font-btn" data-font="Arial">Arial</button>
+          <button class="font-btn" data-font="Serif">Serif</button>
+          <button class="font-btn" data-font="Pixel">Pixel</button>
+          <button class="font-btn" data-font="Pacifico">Pacifico</button>
+        </div>
       </div>
-    </div>
 
-    <div class="send-card">
-      <h3>Enviar</h3>
-      <div class="toolbar">
+      <div style="margin-bottom:8px;">
+        <label for="fontSize">Tamaño</label>
+        <input id="fontSize" type="range" min="12" max="48" value="24">
+        <span id="sizeVal">24px</span>
+      </div>
+
+      <div style="margin-bottom:8px;">
+        <button id="applyTextBtn" class="btn-main">Aplicar Texto</button>
+      </div>
+
+      <div id="textInputs" style="margin-top:6px;">
+        <input id="line1" placeholder="Línea 1" />
+        <input id="line2" placeholder="Línea 2" class="hidden" />
+        <input id="line3" placeholder="Línea 3" class="hidden" />
+      </div>
+    </section>
+
+    <!-- Emojis totalmente eliminados -->
+
+    <section class="send-card">
+      <h3>Enviar / Animaciones</h3>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
         <button id="showWolfchanBtn" class="btn-sec">Mostrar Wolfchan Mexa</button>
-        <button id="sendWolfchanBtn" class="btn-main sendBtn" data-design="wolfchan_mexa">Enviar Wolfchan Mexa</button>
         <button id="showBangchanBtn" class="btn-sec">Mostrar Bangchan AN01</button>
+        <button id="sendWolfchanBtn" class="btn-main sendBtn" data-design="wolfchan_mexa">Enviar Wolfchan Mexa</button>
         <button id="sendBangchanBtn" class="btn-main sendBtn" data-design="bangchan_an01">Enviar Bangchan AN01</button>
       </div>
 
-      <div style="margin-top:12px; display:flex; gap:8px;">
-        <button id="sendBtn" class="btn-main sendBtn">Enviar al Nachimbong</button>
-        <button id="resetBtn" class="btn-sec">🔁</button>
+      <div style="display:flex; gap:8px; margin-bottom:8px;">
+        <button id="sendBtn" class="btn-main sendBtn">📡 Enviar al Nachimbong</button>
+        <button id="reconnectBtn" class="btn-sec">🔄 Reconectar Bluetooth</button>
       </div>
 
-      <div style="margin-top:12px;">
-        <div id="status" class="console-log">Estado: listo</div>
+      <div>
+        <div id="status" class="console-log">Listo para conectar...</div>
       </div>
-    </div>
+    </section>
+
   </main>
 
   <footer>
-    Hecho con ❤️ — Nachimbong v2
+    SKZ NACHIMBONG V2 • OLED STUDIO
   </footer>
 
-  <!-- Scripts: mantener el orden: diseños -> conect -> parches -> app -->
+  <!-- Scripts: mantener orden correcto -->
   <script src="bangchan_an01.js"></script>
   <script src="wolfchan_mexa.js"></script>
   <script src="conect.js"></script>
