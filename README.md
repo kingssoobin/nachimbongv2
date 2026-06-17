@@ -14,6 +14,7 @@ Incluye pasos recomendados, instalación alternativa, verificación de integrida
 - [Solución de problemas comunes](#soluci%C3%B3n-de-problemas-comunes)
 - [Desinstalación](#desinstalaci%C3%B3n)
 - [Soporte / Contacto](#soporte--contacto)
+- [Errores comunes de la app](#errores-comunes-de-la-app)
 - [Licencia y contribuciones](#licencia-y-contribuciones)
 - [Falsos positivos en VirusTotal](#falsos-positivos-en-virustotal)
 - [Changelog](#changelog)
@@ -65,6 +66,9 @@ Correo: kingssoobin@gmail.com
 
 ¡Que tengas un excelente día y disfruta la app!
 
+### Errores comunes de la App
+- En caso de que la imagen enviada tenga parpadeos, reiniciar la aplicación, y volver a enviar.
+
 ## Licencia y contribuciones
 Este proyecto es una modificación de la app original que permite enviar imágenes personalizadas a la pantalla OLED de la Nachimbong V2.
 
@@ -74,7 +78,7 @@ Este proyecto es una modificación de la app original que permite enviar imágen
 **Importante — derechos y responsabilidad**
 - El uso de esta modificación es bajo tu propia responsabilidad. No nos hacemos responsables por daños en hardware o software derivados de su uso.
 
-### Falsos positivos en VirusTotal
+## Falsos positivos en VirusTotal
 
 Al analizar esta aplicación en VirusTotal, algunos motores antivirus podrían generar alertas o detecciones consideradas falsos positivos. Esto se debe a que el APK fue desarrollado a partir de la aplicación original, la cual utiliza una WebView para mostrar su contenido.
 
