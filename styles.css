@@ -109,7 +109,7 @@ input[type="range"] { flex: 1; accent-color: var(--acc); }
 
 .console-log {
     background: #000; padding: 12px; border-radius: 8px;
-    font-family: monospace; font-size: 11px; color: #5effbc;
+    font-family: monospace; font-size: 11px; color: #ff5e5e;
     min-height: 60px; border: 1px dashed var(--border);
     overflow-y: auto; max-height: 100px;
 }
