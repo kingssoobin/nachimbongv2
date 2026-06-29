@@ -94,3 +94,5 @@ Debido a estas modificaciones, algunos motores de análisis pueden detectar dife
 - v1.13 — Se implementa un nuevo menú para organizar mejor las funciones.
 
 ---
+
+( nachimbong, stray kids, lightstick, skz, v2, stray kids bluetooth, lightstick reverse engineering, oled skin, OLED )
