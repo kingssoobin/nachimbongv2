@@ -87,6 +87,9 @@ Para implementar las modificaciones, fue necesario reemplazar la página web ori
 Debido a estas modificaciones, algunos motores de análisis pueden detectar diferencias respecto al APK original y generar advertencias automáticas. Sin embargo, dichas detecciones no implican necesariamente la presencia de código malicioso.
 
 ### Changelog
-- v1.0 — Versión inicial.
+- v1.10 — Editor de texto y emojis.
+- v1.11 — Se agregan Wolf Chan Mexa y Wolf Chan con maracas.
+- v1.12 — Se agregan los SKZOO Mexas y con maracas restantes.
+- v1.13 — Se implementa un nuevo menú para organizar mejor las funciones.
 
 ---
