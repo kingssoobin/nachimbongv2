@@ -1,4 +1,4 @@
-### SKZ V2 Mod — Instrucciones de instalación
+### (Early Access) SKZ V2 Mod — Instrucciones de instalación
 -----
 Cómo descargar e instalar la aplicación `SKZ-V2-Mod.xapk`.
 
