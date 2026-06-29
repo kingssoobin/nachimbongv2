@@ -1131,9 +1131,25 @@
 
 // ===== CLEAN PATCH: styled buttons + text/emoji send + implicit reset after send =====
 (function(){
-  const WOLF_NAME = 'wolfchan_mexa';
-  const BANG_NAME = 'bangchan_an01';
   const RESET_DELAY_MS = 500;
+  const DESIGN_BUTTON_CONFIGS = [
+    { name: 'wolfchan_mexa', showBtnId: 'showWolfchanBtn', sendBtnId: 'sendWolfchanBtn' },
+    { name: 'bangchan_an01', showBtnId: 'showBangchanBtn', sendBtnId: 'sendBangchanBtn' },
+    { name: 'puppym_mexa', showBtnId: 'showPuppymBtn', sendBtnId: 'sendPuppymBtn' },
+    { name: 'bbokari_mexa', showBtnId: 'showBbokariBtn', sendBtnId: 'sendBbokariBtn' },
+    { name: 'quokka_mexa', showBtnId: 'showQuokkaBtn', sendBtnId: 'sendQuokkaBtn' },
+    { name: 'foxyny_mexa', showBtnId: 'showFoxynyBtn', sendBtnId: 'sendFoxynyBtn' },
+    { name: 'dwaekki_mexa', showBtnId: 'showDwaekkiBtn', sendBtnId: 'sendDwaekkiBtn' },
+    { name: 'leebit_mexa', showBtnId: 'showLeebitBtn', sendBtnId: 'sendLeebitBtn' },
+    { name: 'jiniret_mexa', showBtnId: 'showJiniretBtn', sendBtnId: 'sendJiniretBtn' },
+    { name: 'seungmin_an01', showBtnId: 'showSeungminBtn', sendBtnId: 'sendSeungminBtn' },
+    { name: 'felix_an01', showBtnId: 'showFelixBtn', sendBtnId: 'sendFelixBtn' },
+    { name: 'in_an01', showBtnId: 'showInBtn', sendBtnId: 'sendInBtn' },
+    { name: 'han_an01', showBtnId: 'showHanBtn', sendBtnId: 'sendHanBtn' },
+    { name: 'leeknow_an01', showBtnId: 'showLeeknowBtn', sendBtnId: 'sendLeeknowBtn' },
+    { name: 'changbin_an01', showBtnId: 'showChangbinBtn', sendBtnId: 'sendChangbinBtn' },
+    { name: 'hyunjin_an01', showBtnId: 'showHyunjinBtn', sendBtnId: 'sendHyunjinBtn' }
+  ];
 
   const wait = (ms) => new Promise(r => setTimeout(r, ms));
 
@@ -1219,11 +1235,6 @@
       const sendBtn = replaceButton(document.getElementById('sendBtn'));
       const reconnectBtn = replaceButton(document.getElementById('reconnectBtn'));
 
-      const showWolf = replaceButton(document.getElementById('showWolfchanBtn'));
-      const showBang = replaceButton(document.getElementById('showBangchanBtn'));
-      const sendWolf = replaceButton(document.getElementById('sendWolfchanBtn'));
-      const sendBang = replaceButton(document.getElementById('sendBangchanBtn'));
-
       if (sendBtn) {
         sendBtn.addEventListener('click', async (ev) => {
           ev.preventDefault();
@@ -1238,10 +1249,22 @@
         }, { passive: false });
       }
 
-      if (showWolf) showWolf.addEventListener('click', () => { if (typeof window.loadDesign === 'function') window.loadDesign(WOLF_NAME, 'standard'); });
-      if (showBang) showBang.addEventListener('click', () => { if (typeof window.loadDesign === 'function') window.loadDesign(BANG_NAME, 'standard'); });
-      if (sendWolf) sendWolf.addEventListener('click', async () => { await sendDesignAndReset(WOLF_NAME); });
-      if (sendBang) sendBang.addEventListener('click', async () => { await sendDesignAndReset(BANG_NAME); });
+      DESIGN_BUTTON_CONFIGS.forEach(({ name, showBtnId, sendBtnId }) => {
+        const showBtn = replaceButton(document.getElementById(showBtnId));
+        const sendDesignBtn = replaceButton(document.getElementById(sendBtnId));
+
+        if (showBtn) {
+          showBtn.addEventListener('click', () => {
+            if (typeof window.loadDesign === 'function') window.loadDesign(name, 'standard');
+          });
+        }
+
+        if (sendDesignBtn) {
+          sendDesignBtn.addEventListener('click', async () => {
+            await sendDesignAndReset(name);
+          });
+        }
+      });
 
       // If the reset button itself is used manually, let it work normally.
       const resetBtn = getResetButtonLike();
