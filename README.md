@@ -1,4 +1,5 @@
 ### (Early Access) SKZ V2 Mod — Instrucciones de instalación
+### (Reverse Engineering for the Nachimbong V2)
 -----
 Cómo descargar e instalar la aplicación `SKZ-V2-Mod.xapk`.
 
