@@ -30,7 +30,16 @@
         </div>
     </div>
 
-    <div class="card">
+    <!-- Barra de pestañas -->
+    <div class="tab-bar">
+        <button class="tab-item active" data-tab="texto" onclick="switchTab('texto', this)">ESCRIBIR<br>TEXTO</button>
+        <button class="tab-item" data-tab="emojis" onclick="switchTab('emojis', this)">SELECTOR<br>DE EMOJIS</button>
+        <button class="tab-item" data-tab="mexa" onclick="switchTab('mexa', this)">ANIMACIÓN<br>MEXA</button>
+        <button class="tab-item" data-tab="an01" onclick="switchTab('an01', this)">ANIMACIÓN<br>AN01</button>
+    </div>
+
+    <!-- Pestaña: ESCRIBIR TEXTO -->
+    <div class="card tab-panel active" id="tab-texto">
         <h3>✏️ Editor de Texto</h3>
         <div class="input-group">
             <button class="btn-sec line-btn active" onclick="setLines(1, this)">1L</button>
@@ -60,7 +69,8 @@
         <button class="btn-main" onclick="applyText()" style="margin-top:15px">Aplicar Texto</button>
     </div>
 
-    <div class="card">
+    <!-- Pestaña: SELECTOR DE EMOJIS -->
+    <div class="card tab-panel" id="tab-emojis">
         <h3>😀 Emojis</h3>
         <div class="input-group">
             <button class="btn-sec emoji-tab active" onclick="showEmojiCat('fav', this)">⭐</button>
@@ -70,13 +80,12 @@
         <div class="emoji-grid" id="emojiGrid" style="margin-top:10px"></div>
     </div>
 
-    <div class="send-card">
-        <div class="font-grid" style="margin-bottom: 12px;">
+    <!-- Pestaña: ANIMACIÓN MEXA -->
+    <div class="card tab-panel" id="tab-mexa">
+        <h3>🐾 Animaciones Mexa</h3>
+        <div class="font-grid">
           <button id="showWolfchanBtn" class="font-btn">Mostrar Wolfchan Mexa</button>
           <button id="sendWolfchanBtn" class="font-btn">Enviar Wolfchan Mexa</button>
-
-          <button id="showBangchanBtn" class="font-btn">Mostrar Bangchan AN01</button>
-          <button id="sendBangchanBtn" class="font-btn">Enviar Bangchan AN01</button>
 
           <button id="showPuppymBtn" class="font-btn">Mostrar Puppym Mexa</button>
           <button id="sendPuppymBtn" class="font-btn">Enviar Puppym Mexa</button>
@@ -98,6 +107,15 @@
 
           <button id="showJiniretBtn" class="font-btn">Mostrar Jiniret Mexa</button>
           <button id="sendJiniretBtn" class="font-btn">Enviar Jiniret Mexa</button>
+        </div>
+    </div>
+
+    <!-- Pestaña: ANIMACIÓN AN01 -->
+    <div class="card tab-panel" id="tab-an01">
+        <h3>🎤 Animaciones AN01</h3>
+        <div class="font-grid">
+          <button id="showBangchanBtn" class="font-btn">Mostrar Bangchan AN01</button>
+          <button id="sendBangchanBtn" class="font-btn">Enviar Bangchan AN01</button>
 
           <button id="showSeungminBtn" class="font-btn">Mostrar Seungmin AN01</button>
           <button id="sendSeungminBtn" class="font-btn">Enviar Seungmin AN01</button>
@@ -120,13 +138,30 @@
           <button id="showHyunjinBtn" class="font-btn">Mostrar Hyunjin AN01</button>
           <button id="sendHyunjinBtn" class="font-btn">Enviar Hyunjin AN01</button>
         </div>
+    </div>
 
+    <!-- Controles globales (siempre visibles) -->
+    <div class="send-card">
         <button id="sendBtn" class="btn-main glow">📡 Enviar al Nachimbong</button>
         <button id="reconnectBtn" class="btn-main" style="margin-top: 8px;">🔄 Reconectar Bluetooth</button>
 
         <div id="status" class="console-log" style="margin-top:15px">Listo para conectar...</div>
     </div>
 </main>
+
+<script>
+    function switchTab(tab, el) {
+        document.querySelectorAll('.tab-panel').forEach(function (p) {
+            p.classList.remove('active');
+        });
+        document.querySelectorAll('.tab-item').forEach(function (t) {
+            t.classList.remove('active');
+        });
+        var panel = document.getElementById('tab-' + tab);
+        if (panel) panel.classList.add('active');
+        if (el) el.classList.add('active');
+    }
+</script>
 
 <footer>SKZ NACHIMBONG V2 • OLED STUDIO</footer>
 
@@ -150,5 +185,6 @@
 <!-- app logic -->
 <script src="conect.js"></script>
 <script src="app.js"></script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon='{"version":"2024.11.0","token":"f0f03d0605bf45f1a3b17cf7d5e6861f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>
