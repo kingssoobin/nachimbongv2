@@ -1154,7 +1154,9 @@
     { name: 'dominate', showBtnId: 'showdominATEBtn', sendBtnId: 'senddominATEBtn' },
     { name: 'runit', showBtnId: 'showRunItBtn', sendBtnId: 'sendRunItBtn' },
     { name: 'sclass', showBtnId: 'showsclassBtn', sendBtnId: 'sendsclassBtn' },
-    { name: 'straycity', showBtnId: 'showstraycityBtn', sendBtnId: 'sendstraycityBtn' }
+    { name: 'straycity', showBtnId: 'showstraycityBtn', sendBtnId: 'sendstraycityBtn' },
+
+    { name: 'numero10', showBtnId: 'shownumero10Btn', sendBtnId: 'sendnumero10Btn' }
   ];
 
   const wait = (ms) => new Promise(r => setTimeout(r, ms));

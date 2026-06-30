@@ -93,6 +93,8 @@ Debido a estas modificaciones, algunos motores de análisis pueden detectar dife
 - v1.12 — Se agregan los SKZOO Mexas y con maracas restantes.
 - v1.13 — Se implementa un nuevo menú para organizar mejor las funciones.
 - v1.14 — Se agregan logos y se reorganiza la estructura de archivos.
+- v1.15 — Se agregan nuevas pestañas para futuros diseños y un botón de prueba para conocer el límite de frames soportados.
+
 
 ---
 
