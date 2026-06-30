@@ -92,6 +92,7 @@ Debido a estas modificaciones, algunos motores de análisis pueden detectar dife
 - v1.11 — Se agregan Wolf Chan Mexa y Wolf Chan con maracas.
 - v1.12 — Se agregan los SKZOO Mexas y con maracas restantes.
 - v1.13 — Se implementa un nuevo menú para organizar mejor las funciones.
+- v1.14 — Se agregan logos y se reorganiza la estructura de archivos.
 
 ---
 
