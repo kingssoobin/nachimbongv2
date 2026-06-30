@@ -36,6 +36,7 @@
         <button class="tab-item" data-tab="emojis" onclick="switchTab('emojis', this)">SELECTOR<br>DE EMOJIS</button>
         <button class="tab-item" data-tab="mexa" onclick="switchTab('mexa', this)">ANIMACIÓN<br>MEXA</button>
         <button class="tab-item" data-tab="an01" onclick="switchTab('an01', this)">ANIMACIÓN<br>CON MARACAS</button>
+        <button class="tab-item" data-tab="logos" onclick="switchTab('logos', this)">LOGOS<br>SKZ</button>
     </div>
 
     <!-- Pestaña: ESCRIBIR TEXTO -->
@@ -117,7 +118,7 @@
           <button id="showBangchanBtn" class="font-btn">Mostrar Wolf Chan con Maracas</button>
           <button id="sendBangchanBtn" class="font-btn">Enviar Wolf Chan con Maracas</button>
 
-          <button id="showSeungminBtn" class="font-btn">Mostrar PuppyM con Maracas1</button>
+          <button id="showSeungminBtn" class="font-btn">Mostrar PuppyM con Maracas</button>
           <button id="sendSeungminBtn" class="font-btn">Enviar PuppyM con Maracas</button>
 
           <button id="showFelixBtn" class="font-btn">Mostrar BbokAri con Maracas</button>
@@ -139,6 +140,24 @@
           <button id="sendHyunjinBtn" class="font-btn">Enviar Jiniret con Maracas</button>
         </div>
     </div>
+
+    <!-- Pestaña: LOGOS SKZ -->
+    <div class="card tab-panel" id="tab-logos">
+        <h3>🎤 Logos SKZ</h3>
+        <div class="font-grid">
+          <button id="showdominATEBtn" class="font-btn">Mostrar dominATE</button>
+          <button id="senddominATEBtn" class="font-btn">Enviar domiATE</button>
+
+          <button id="showRunItBtn" class="font-btn">Mostrar Run It</button>
+          <button id="sendRunItBtn" class="font-btn">Enviar Run It</button>
+
+          <button id="showsclassBtn" class="font-btn">Mostrar S-CLASS</button>
+          <button id="sendsclassBtn" class="font-btn">Enviar S-CLASS</button>
+
+          <button id="showstraycityBtn" class="font-btn">Mostrar STRAY CITY</button>
+          <button id="sendstraycityBtn" class="font-btn">Enviar STRAY CITY</button>
+        </div>
+    </div>    
 
     <!-- Controles globales (siempre visibles) -->
     <div class="send-card">
@@ -166,22 +185,29 @@
 <footer>SKZ NACHIMBONG V2 • OLED STUDIO • KINGS_SOOBIN</footer>
 
 <!-- diseños incorporados -->
-<script src="wolfchan_mexa.js"></script>
-<script src="bangchan_an01.js"></script>
-<script src="puppym_mexa.js"></script>
-<script src="bbokari_mexa.js"></script>
-<script src="quokka_mexa.js"></script>
-<script src="foxyny_mexa.js"></script>
-<script src="dwaekki_mexa.js"></script>
-<script src="leebit_mexa.js"></script>
-<script src="jiniret_mexa.js"></script>
-<script src="seungmin_an01.js"></script>
-<script src="felix_an01.js"></script>
-<script src="in_an01.js"></script>
-<script src="han_an01.js"></script>
-<script src="leeknow_an01.js"></script>
-<script src="changbin_an01.js"></script>
-<script src="hyunjin_an01.js"></script>
+<script src="mexa/wolfchan_mexa.js"></script>
+<script src="mexa/puppym_mexa.js"></script>
+<script src="mexa/bbokari_mexa.js"></script>
+<script src="mexa/quokka_mexa.js"></script>
+<script src="mexa/foxyny_mexa.js"></script>
+<script src="mexa/dwaekki_mexa.js"></script>
+<script src="mexa/leebit_mexa.js"></script>
+<script src="mexa/jiniret_mexa.js"></script>
+
+<script src="an01/bangchan_an01.js"></script>
+<script src="an01/seungmin_an01.js"></script>
+<script src="an01/felix_an01.js"></script>
+<script src="an01/in_an01.js"></script>
+<script src="an01/han_an01.js"></script>
+<script src="an01/leeknow_an01.js"></script>
+<script src="an01/changbin_an01.js"></script>
+<script src="an01/hyunjin_an01.js"></script>
+
+<script src="logos/dominate.js"></script>
+<script src="logos/runit.js"></script>
+<script src="logos/sclass.js"></script>
+<script src="logos/straycity.js"></script>
+
 <!-- app logic -->
 <script src="conect.js"></script>
 <script src="app.js"></script>

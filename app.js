@@ -1134,7 +1134,6 @@
   const RESET_DELAY_MS = 500;
   const DESIGN_BUTTON_CONFIGS = [
     { name: 'wolfchan_mexa', showBtnId: 'showWolfchanBtn', sendBtnId: 'sendWolfchanBtn' },
-    { name: 'bangchan_an01', showBtnId: 'showBangchanBtn', sendBtnId: 'sendBangchanBtn' },
     { name: 'puppym_mexa', showBtnId: 'showPuppymBtn', sendBtnId: 'sendPuppymBtn' },
     { name: 'bbokari_mexa', showBtnId: 'showBbokariBtn', sendBtnId: 'sendBbokariBtn' },
     { name: 'quokka_mexa', showBtnId: 'showQuokkaBtn', sendBtnId: 'sendQuokkaBtn' },
@@ -1142,13 +1141,20 @@
     { name: 'dwaekki_mexa', showBtnId: 'showDwaekkiBtn', sendBtnId: 'sendDwaekkiBtn' },
     { name: 'leebit_mexa', showBtnId: 'showLeebitBtn', sendBtnId: 'sendLeebitBtn' },
     { name: 'jiniret_mexa', showBtnId: 'showJiniretBtn', sendBtnId: 'sendJiniretBtn' },
+
     { name: 'seungmin_an01', showBtnId: 'showSeungminBtn', sendBtnId: 'sendSeungminBtn' },
+    { name: 'bangchan_an01', showBtnId: 'showBangchanBtn', sendBtnId: 'sendBangchanBtn' },    
     { name: 'felix_an01', showBtnId: 'showFelixBtn', sendBtnId: 'sendFelixBtn' },
     { name: 'in_an01', showBtnId: 'showInBtn', sendBtnId: 'sendInBtn' },
     { name: 'han_an01', showBtnId: 'showHanBtn', sendBtnId: 'sendHanBtn' },
     { name: 'leeknow_an01', showBtnId: 'showLeeknowBtn', sendBtnId: 'sendLeeknowBtn' },
     { name: 'changbin_an01', showBtnId: 'showChangbinBtn', sendBtnId: 'sendChangbinBtn' },
-    { name: 'hyunjin_an01', showBtnId: 'showHyunjinBtn', sendBtnId: 'sendHyunjinBtn' }
+    { name: 'hyunjin_an01', showBtnId: 'showHyunjinBtn', sendBtnId: 'sendHyunjinBtn' },
+    
+    { name: 'dominate', showBtnId: 'showdominATEBtn', sendBtnId: 'senddominATEBtn' },
+    { name: 'runit', showBtnId: 'showRunItBtn', sendBtnId: 'sendRunItBtn' },
+    { name: 'sclass', showBtnId: 'showsclassBtn', sendBtnId: 'sendsclassBtn' },
+    { name: 'straycity', showBtnId: 'showstraycityBtn', sendBtnId: 'sendstraycityBtn' }
   ];
 
   const wait = (ms) => new Promise(r => setTimeout(r, ms));
