@@ -73,7 +73,7 @@ Correo: kingssoobin@gmail.com
 ## Licencia y contribuciones
 Este proyecto es una modificación de la app original que permite enviar imágenes personalizadas a la pantalla OLED de la Nachimbong V2.
 
-- Autor original: PLVE App Developer.
+- Autor original: PLVE App Developer (UMK Entertainment Co., Ltd).
 - Esta modificación fue realizada por: Kings_Soobin.
 
 **Importante — derechos y responsabilidad**
