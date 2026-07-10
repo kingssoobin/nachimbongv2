@@ -208,7 +208,7 @@
                 <button class="wallpaper-category-btn" data-category="fanmeeting" type="button">FANMEETING</button>
             </div>
 
-            <div id="wallpaper-section-title" class="wallpaper-section-title"></div>
+            <br>
             <div id="wallpaper-submenu" class="wallpaper-submenu"></div>
 
             <div id="wallpaper-empty" class="wallpaper-empty">Selecciona una categoría y colección para ver fondos.</div>
