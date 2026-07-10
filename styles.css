@@ -7,10 +7,10 @@
     --card: #1f1212;
     --acc: #e00000;
     --acc-glow: rgba(224, 0, 0, 0.3);
-    --border: #331f1f;
+    --border: #331f1f27;
     --text: #ffff;
-    --text-mut: #ab8a8a;
-    --danger: #ff4d4d;
+    --text-mut: #ab8a8a98;
+    --danger: #ff4d4d98;
     
     /* Glassmorphism values */
     --glass-bg: rgba(31, 18, 18, 0.35);
@@ -46,7 +46,7 @@ body::before {
     content: "";
     position: fixed;
     inset: 0;
-    background: rgba(15, 8, 8, 0.75);
+    background: rgba(15, 8, 8, 0.486);
     backdrop-filter: blur(2px);
     -webkit-backdrop-filter: blur(2px);
     z-index: -1;
@@ -59,7 +59,7 @@ body::before {
 
 .topbar {
     padding: 15px 20px;
-    background: rgba(23, 13, 13, 0.45);
+    background: rgba(23, 13, 13, 0.384);
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
     border-bottom: 1px solid var(--border);
