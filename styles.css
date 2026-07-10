@@ -13,9 +13,9 @@
     --danger: #ff4d4d98;
     
     /* Glassmorphism values */
-    --glass-bg: rgba(31, 18, 18, 0.35);
-    --glass-border: rgba(255, 255, 255, 0.08);
-    --glass-blur: 16px;
+    --glass-bg: rgba(31, 18, 18, 0.4);
+    --glass-border: rgba(255, 255, 255, 0.021);
+    --glass-blur: 6px;
 }
 
 /* ============================================
@@ -46,7 +46,7 @@ body::before {
     content: "";
     position: fixed;
     inset: 0;
-    background: rgba(15, 8, 8, 0.486);
+    background: rgba(15, 8, 8, 0.445);
     backdrop-filter: blur(2px);
     -webkit-backdrop-filter: blur(2px);
     z-index: -1;
@@ -167,8 +167,8 @@ main {
     border-radius: 10px;
     border: 2px solid var(--border);
     background: rgba(31, 18, 18, 0.28);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     color: white;
     display: flex;
     align-items: center;
@@ -194,8 +194,8 @@ main {
     border-radius: 12px;
     border: 1px solid var(--acc);
     background: rgba(224, 0, 0, 0.04);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     color: var(--acc);
     font-size: 28px;
     font-weight: 900;
@@ -224,8 +224,8 @@ main {
     border-radius: 10px;
     border: 1px solid var(--border);
     background: rgba(31, 18, 18, 0.28);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     color: var(--text-mut);
     cursor: pointer;
     font-size: 11px;
@@ -272,8 +272,8 @@ main {
     letter-spacing: 1px;
     padding: 8px 10px;
     background: rgba(224, 0, 0, 0.04);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     margin-bottom: 10px;
     font-size: 20px;
     line-height: 1;
@@ -294,8 +294,8 @@ main {
     border: 1px solid var(--border);
     border-radius: 12px;
     background: rgba(31, 18, 18, 0.30);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     color: var(--text-mut);
     font-weight: 800;
     text-transform: uppercase;
@@ -459,8 +459,8 @@ h3 {
 input[type="text"] {
     width: 100%;
     background: rgba(15, 8, 8, 0.35);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     border: 1px solid var(--border);
     border-radius: 8px;
     color: white;
@@ -507,8 +507,8 @@ input[type="range"] {
 
 .btn-sec {
     background: rgba(46, 26, 26, 0.35);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     color: white;
     border: 1px solid var(--border);
     padding: 10px 15px;
@@ -543,8 +543,8 @@ input[type="range"] {
     border-radius: 8px;
     border: 1px solid var(--border);
     background: rgba(46, 26, 26, 0.35);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     color: var(--text-mut);
     cursor: pointer;
     font-size: 12px;
@@ -581,8 +581,8 @@ input[type="range"] {
 .emoji-item {
     aspect-ratio: 1;
     background: rgba(46, 26, 26, 0.35);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     border: 1px solid var(--border);
     border-radius: 6px;
     display: flex;
@@ -605,8 +605,8 @@ input[type="range"] {
 
 .console-log {
     background: rgba(0, 0, 0, 0.35);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     padding: 12px;
     border-radius: 8px;
     font-family: monospace;
