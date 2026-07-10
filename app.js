@@ -1191,6 +1191,7 @@
     { name: 'venom', showBtnId: 'showvenomBtn', sendBtnId: 'sendvenomBtn' },
     { name: 'maniac', showBtnId: 'showmaniacBtn', sendBtnId: 'sendmaniacBtn' },
     { name: 'rockstar', showBtnId: 'showrockstarBtn', sendBtnId: 'sendrockstarBtn' },
+    { name: 'maxident', showBtnId: 'showmaxidentBtn', sendBtnId: 'sendmaxidentBtn' },
 
     { name: 'ymsks', showBtnId: 'showymsksBtn', sendBtnId: 'sendymsksBtn' },
     { name: 'stayangel', showBtnId: 'showstayangelBtn', sendBtnId: 'sendstayangelBtn' },
