@@ -13,8 +13,26 @@
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 body {
     margin: 0; font-family: 'Inter', sans-serif;
-    background: var(--bg); color: var(--text);
+    background: var(--bg); 
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    color: var(--text);
     overflow-x: hidden;
+    transition: background-image 0.5s ease;
+    min-height: 100vh;
+}
+
+/* Overlay oscuro para mejor legibilidad del contenido sobre fondos */
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 8, 8, 0.75);
+    backdrop-filter: blur(2px);
+    z-index: -1;
+    pointer-events: none;
 }
 
 .topbar {
@@ -60,23 +78,220 @@ main { padding: 15px; max-width: 500px; margin: 0 auto; }
     font-size: 20px; cursor: pointer;
 }
 
+.tab-item.tab-fondo-hero {
+    width: 100%;
+    margin-bottom: 10px;
+    padding: 12px 10px;
+    border-radius: 12px;
+    border: 1px solid var(--acc);
+    background: rgba(224, 0, 0, 0.04);
+    color: var(--acc);
+    font-size: 28px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    line-height: 1;
+}
+
 .tab-bar {
-    display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
     margin-bottom: 15px;
 }
+
 .tab-item {
-    padding: 10px 4px; border-radius: 10px; border: 1px solid var(--border);
-    background: var(--card); color: var(--text-mut); cursor: pointer;
-    font-size: 11px; font-weight: 700; line-height: 1.3; text-align: center;
-    text-transform: uppercase; letter-spacing: 0.5px;
+    padding: 10px 4px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text-mut);
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.3;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
+
 .tab-item.active {
-    border-color: var(--acc); color: var(--acc);
+    border-color: var(--acc);
+    color: var(--acc);
     background: rgba(224, 0, 0, 0.06);
+}
+
+.tab-fondo-hero.active {
+    border-color: var(--acc);
+    color: var(--acc);
+    background: rgba(224, 0, 0, 0.12);
+    box-shadow: 0 0 0 2px rgba(224, 0, 0, 0.18);
 }
 
 .tab-panel { display: none; }
 .tab-panel.active { display: block; }
+
+/* ============================================
+   🖼️ WALLPAPER SELECTOR (menú jerárquico)
+   ============================================ */
+
+.wallpaper-section-title {
+    display: none;
+    width: 100%;
+    border: 1px solid var(--acc);
+    border-radius: 12px;
+    text-align: center;
+    color: var(--acc);
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 8px 10px;
+    background: rgba(224, 0, 0, 0.04);
+    margin-bottom: 10px;
+    font-size: 20px;
+    line-height: 1;
+}
+
+.wallpaper-section-title.visible {
+    display: block;
+}
+
+.wallpaper-category-stack {
+    display: grid;
+    gap: 10px;
+}
+
+.wallpaper-category-btn,
+.wallpaper-option-btn {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: rgba(52, 23, 23, 0.6);
+    color: var(--text-mut);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.wallpaper-category-btn {
+    padding: 10px;
+    font-size: 16px;
+}
+
+.wallpaper-option-btn {
+    min-height: 46px;
+    padding: 8px;
+    font-size: 12px;
+    line-height: 1.15;
+    word-break: normal;
+    overflow-wrap: anywhere;
+}
+
+.wallpaper-category-btn:hover,
+.wallpaper-option-btn:hover {
+    border-color: var(--acc);
+    color: var(--text);
+}
+
+.wallpaper-category-btn.active,
+.wallpaper-option-btn.active {
+    border-color: var(--acc);
+    color: var(--acc);
+    background: rgba(224, 0, 0, 0.08);
+}
+
+.wallpaper-submenu {
+    display: none;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.wallpaper-submenu.visible {
+    display: grid;
+}
+
+.wallpaper-empty {
+    display: none;
+    color: var(--text-mut);
+    font-size: 13px;
+    margin: 8px 0 12px;
+}
+
+.wallpaper-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    max-height: 360px;
+    overflow-y: auto;
+    padding: 5px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--acc) #2e1a1a;
+}
+
+.wallpaper-grid::-webkit-scrollbar { width: 8px; }
+.wallpaper-grid::-webkit-scrollbar-track { background: #2e1a1a; border-radius: 4px; }
+.wallpaper-grid::-webkit-scrollbar-thumb { background: var(--acc); border-radius: 4px; }
+
+.wallpaper-thumb {
+    aspect-ratio: 1;
+    border-radius: 8px;
+    background-size: cover;
+    background-position: center;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.wallpaper-thumb:hover {
+    transform: scale(1.03);
+    border-color: var(--acc);
+    box-shadow: 0 4px 15px var(--acc-glow);
+}
+
+.wallpaper-thumb.selected {
+    border-color: var(--acc);
+    box-shadow: 0 0 0 3px var(--acc-glow);
+}
+
+.wallpaper-thumb.selected::after {
+    content: '✓';
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 24px;
+    height: 24px;
+    background: var(--acc);
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+@media (max-width: 768px) {
+    .wallpaper-main-title { font-size: 21px; }
+    .wallpaper-section-title { font-size: 18px; }
+    .wallpaper-submenu { grid-template-columns: repeat(2, 1fr); }
+    .wallpaper-option-btn { font-size: 16px; }
+}
+
+@media (max-width: 480px) {
+    .wallpaper-main-title { font-size: 18px; }
+    .wallpaper-section-title { font-size: 16px; }
+    .wallpaper-category-btn { font-size: 14px; }
+    .wallpaper-submenu { grid-template-columns: repeat(2, 1fr); gap: 7px; }
+    .wallpaper-option-btn {
+        min-height: 44px;
+        font-size: 11px;
+        letter-spacing: 0.3px;
+    }
+    .wallpaper-grid { grid-template-columns: repeat(3, 1fr); gap: 6px; max-height: 300px; }
+}
 
 .card, .send-card {
     background: var(--card); border-radius: 15px; padding: 20px;

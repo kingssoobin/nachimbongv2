@@ -139,25 +139,30 @@
 
   // TRANSFER to NACHIMBONG: SSD1306 page-byte format
   async function transferOled(){
-    statusEl.innerText = 'Preparando imagen...';
-    const imgData = ctx.getImageData(0,0,128,128).data;
-    const oledBytes = new Uint8Array(2048);
+    try {
+      window._transferInProgress = true;
+      statusEl.innerText = 'Preparando imagen...';
+      const imgData = ctx.getImageData(0,0,128,128).data;
+      const oledBytes = new Uint8Array(2048);
 
-    for(let y=0;y<128;y++){
-      for(let x=0;x<128;x++){
-        const idx = (y*128 + x) * 4;
-        const bright = imgData[idx];
-        // bright > 128 -> white; adjust if your data is inverse.
-        if(bright > 128){
-          const byteIdx = Math.floor(y/8) * 128 + x;
-          oledBytes[byteIdx] |= (1 << (y % 8));
+      for(let y=0;y<128;y++){
+        for(let x=0;x<128;x++){
+          const idx = (y*128 + x) * 4;
+          const bright = imgData[idx];
+          // bright > 128 -> white; adjust if your data is inverse.
+          if(bright > 128){
+            const byteIdx = Math.floor(y/8) * 128 + x;
+            oledBytes[byteIdx] |= (1 << (y % 8));
+          }
         }
       }
-    }
 
-    // send in 16 chunks of 128 bytes via bridge or webkit
-    if(window.NachimbongConnect && typeof window.NachimbongConnect.sendOledChunks==='function'){ const ok = await window.NachimbongConnect.sendOledChunks(oledBytes, { perChunkDelay: 150, perFinalDelay: 200 }); if(!ok){ statusEl.innerText = '⚠️ Error enviando'; return; } } else { console.warn('NachimbongConnect not available — cannot send'); statusEl.innerText = 'Bridge no disponible'; return; }
-    statusEl.innerText = '✅ ¡Enviado correctamente!';
+      // send in 16 chunks of 128 bytes via bridge or webkit
+      if(window.NachimbongConnect && typeof window.NachimbongConnect.sendOledChunks==='function'){ const ok = await window.NachimbongConnect.sendOledChunks(oledBytes, { perChunkDelay: 150, perFinalDelay: 200 }); if(!ok){ statusEl.innerText = '⚠️ Error enviando'; return; } } else { console.warn('NachimbongConnect not available — cannot send'); statusEl.innerText = 'Bridge no disponible'; return; }
+      statusEl.innerText = '✅ ¡Enviado correctamente!';
+    } finally {
+      window._transferInProgress = false;
+    }
   }
 
   // ---------- Envío de animaciones (snapshot, chunks y progreso) ----------
@@ -214,6 +219,7 @@
     if (wasPreviewRunning) stopPreview();
 
     try {
+      window._transferInProgress = true;
       statusEl.innerText = `Enviando animación (${totalFrames} frames)...`;
       for (let fi = 0; fi < totalFrames; fi++) {
         const frameHex = snapshot[fi];
@@ -239,6 +245,7 @@
       console.error('Error enviando animación:', err);
       statusEl.innerText = '⚠️ Error enviando animación: ' + (err && err.message ? err.message : err);
     } finally {
+      window._transferInProgress = false;
       // reanudar preview si estaba corriendo
       if (wasPreviewRunning && lastFrames && lastFrames.length > 1) {
         startPreview(lastFrames, previewMode, Math.round(1000 / Math.max(1, frameIntervalMs)));
@@ -391,8 +398,11 @@
       const bytes = hexToBytes(hex);
       renderOledBytesVariant(bytes, previewMode);
 
-      statusEl.innerText =
-        `Vista previa: frame ${previewIdx + 1}/${framesHex.length} (${fps} FPS, modo: ${previewMode})`;
+      // No actualizar el status si hay una transferencia en progreso
+      if (!window._transferInProgress) {
+        statusEl.innerText =
+          `Vista previa: frame ${previewIdx + 1}/${framesHex.length} (${fps} FPS, modo: ${previewMode})`;
+      }
 
       previewIdx = (previewIdx + 1) % framesHex.length;
     };
@@ -524,9 +534,12 @@
       } else {
         const bytes = hexToBytes(framesHex[0]);
         renderOledBytesVariant(bytes, chosenMode);
-        statusEl.innerText =
-          'Vista previa: ' + (Array.isArray(nameOrArray) ? ('Animación de: ' + nameOrArray.join(', ')) : nameOrArray) +
-          ' (modo: ' + chosenMode + ', frames: ' + lastFrames.length + ')';
+        // No actualizar el status si hay una transferencia en progreso
+        if (!window._transferInProgress) {
+          statusEl.innerText =
+            'Vista previa: ' + (Array.isArray(nameOrArray) ? ('Animación de: ' + nameOrArray.join(', ')) : nameOrArray) +
+            ' (modo: ' + chosenMode + ', frames: ' + lastFrames.length + ')';
+        }
       }
 
       console.log('loadDesign loaded', window._lastLoadedDesign, 'frames:', lastFrames.length, 'hexLen:', framesHex[0].length);
@@ -620,48 +633,53 @@
 
   // Main function: sends frames at perFrameMs (default 100ms)
   window.transferCurrentAnimation = async function(perFrameMs = 100, perChunkDelayMs = Math.max(4, Math.floor(perFrameMs/16))) {
-    const statusEl = document.getElementById('status');
-    function setStatus(t){ try{ if(statusEl) statusEl.innerText = t; }catch(e){} }
+    try {
+      window._transferInProgress = true;
+      const statusEl = document.getElementById('status');
+      function setStatus(t){ try{ if(statusEl) statusEl.innerText = t; }catch(e){} }
 
-    // get frames from window.lastFrames or from MIS_ANIMATIONS selection
-    let frames = [];
-    if(Array.isArray(window.lastFrames) && window.lastFrames.length > 0){ frames = window.lastFrames.slice(); }
-    else if(window.MIS_ANIMATIONS){
-      // try first available animation
-      const keys = Object.keys(window.MIS_ANIMATIONS);
-      if(keys.length>0){ frames = window.MIS_ANIMATIONS[keys[0]].slice(); }
-    }
-
-    if(!frames || frames.length === 0){ setStatus('No hay frames para enviar.'); return; }
-
-    setStatus(`Iniciando envío de ${frames.length} frames @ ${perFrameMs}ms/frame`);
-
-    // initial prep/reset command commonly used by app
-    try{ await bridgeSend('8110,-'); }catch(e){}
-    await new Promise(r=>setTimeout(r, Math.max(80, Math.floor(perFrameMs/4))));
-
-    for(let i=0;i<frames.length;i++){
-      const fhex = padToFrame(frames[i]);
-      const chunks = buildChunksFromFrameHex(fhex);
-      setStatus(`Enviando frame ${i+1}/${frames.length} (chunks=${chunks.length})`);
-
-      // send each chunk quickly to fit frame interval
-      const start = Date.now();
-      for(let ci=0; ci<chunks.length; ci++){
-        const idxHex = ci.toString(16).padStart(2,'0').toUpperCase();
-        const cmd = `810F00000000${idxHex}${chunks[ci]},-`;
-        try{ await bridgeSend(cmd); }catch(e){ console.error('send chunk err', e); }
-        // small delay between chunks
-        await new Promise(r=>setTimeout(r, perChunkDelayMs));
+      // get frames from window.lastFrames or from MIS_ANIMATIONS selection
+      let frames = [];
+      if(Array.isArray(window.lastFrames) && window.lastFrames.length > 0){ frames = window.lastFrames.slice(); }
+      else if(window.MIS_ANIMATIONS){
+        // try first available animation
+        const keys = Object.keys(window.MIS_ANIMATIONS);
+        if(keys.length>0){ frames = window.MIS_ANIMATIONS[keys[0]].slice(); }
       }
 
-      // ensure at least perFrameMs elapsed since start before sending next frame
-      const elapsed = Date.now() - start;
-      const wait = Math.max(0, perFrameMs - elapsed);
-      if(wait>0) await new Promise(r=>setTimeout(r, wait));
-    }
+      if(!frames || frames.length === 0){ setStatus('No hay frames para enviar.'); return; }
 
-    setStatus('Envío de animación completado.');
+      setStatus(`Iniciando envío de ${frames.length} frames @ ${perFrameMs}ms/frame`);
+
+      // initial prep/reset command commonly used by app
+      try{ await bridgeSend('8110,-'); }catch(e){}
+      await new Promise(r=>setTimeout(r, Math.max(80, Math.floor(perFrameMs/4))));
+
+      for(let i=0;i<frames.length;i++){
+        const fhex = padToFrame(frames[i]);
+        const chunks = buildChunksFromFrameHex(fhex);
+        setStatus(`Enviando frame ${i+1}/${frames.length} (chunks=${chunks.length})`);
+
+        // send each chunk quickly to fit frame interval
+        const start = Date.now();
+        for(let ci=0; ci<chunks.length; ci++){
+          const idxHex = ci.toString(16).padStart(2,'0').toUpperCase();
+          const cmd = `810F00000000${idxHex}${chunks[ci]},-`;
+          try{ await bridgeSend(cmd); }catch(e){ console.error('send chunk err', e); }
+          // small delay between chunks
+          await new Promise(r=>setTimeout(r, perChunkDelayMs));
+        }
+
+        // ensure at least perFrameMs elapsed since start before sending next frame
+        const elapsed = Date.now() - start;
+        const wait = Math.max(0, perFrameMs - elapsed);
+        if(wait>0) await new Promise(r=>setTimeout(r, wait));
+      }
+
+      setStatus('Envío de animación completado.');
+    } finally {
+      window._transferInProgress = false;
+    }
   };
 
   // Ensure send button uses transferCurrentAnimation(100)
@@ -705,47 +723,52 @@
 
   // Conservative transfer: send chunks numbered 1..16, longer per-chunk delay and a prep/commit (8110,-) before and after each frame
   window.transferCurrentAnimation = async function(perChunkDelayMs = 80, perFrameDelayMs = 80) {
-    const statusEl = document.getElementById('status');
-    function setStatus(t){ try{ if(statusEl) statusEl.innerText = t; }catch(e){} }
+    try {
+      window._transferInProgress = true;
+      const statusEl = document.getElementById('status');
+      function setStatus(t){ try{ if(statusEl) statusEl.innerText = t; }catch(e){} }
 
-    // obtain frames
-    let frames = [];
-    if(Array.isArray(window.lastFrames) && window.lastFrames.length>0) frames = window.lastFrames.slice();
-    else if(window.MIS_ANIMATIONS){ const k = Object.keys(window.MIS_ANIMATIONS)[0]; if(k) frames = window.MIS_ANIMATIONS[k].slice(); }
-    if(!frames || frames.length===0){ setStatus('No hay frames para enviar.'); return; }
+      // obtain frames
+      let frames = [];
+      if(Array.isArray(window.lastFrames) && window.lastFrames.length>0) frames = window.lastFrames.slice();
+      else if(window.MIS_ANIMATIONS){ const k = Object.keys(window.MIS_ANIMATIONS)[0]; if(k) frames = window.MIS_ANIMATIONS[k].slice(); }
+      if(!frames || frames.length===0){ setStatus('No hay frames para enviar.'); return; }
 
-    setStatus(`Iniciando envío conservador de ${frames.length} frames`);
+      setStatus(`Iniciando envío conservador de ${frames.length} frames`);
 
-    for(let fi=0; fi<frames.length; fi++){
-      const fhex = padToFrame(frames[fi]);
-      const chunks = buildChunksFromFrameHex(fhex);
-      setStatus(`Frame ${fi+1}/${frames.length}: prep`);
+      for(let fi=0; fi<frames.length; fi++){
+        const fhex = padToFrame(frames[fi]);
+        const chunks = buildChunksFromFrameHex(fhex);
+        setStatus(`Frame ${fi+1}/${frames.length}: prep`);
 
-      // pre-frame reset/prep
-      try{ await bridgeSend('8110,-'); }catch(e){}
-      await sleep(120);
+        // pre-frame reset/prep
+        try{ await bridgeSend('8110,-'); }catch(e){}
+        await sleep(120);
 
-      // send chunks numbered 1..N
-      const start = Date.now();
-      for(let ci=0; ci<chunks.length; ci++){
-        const idx = (ci+1).toString(16).padStart(2,'0').toUpperCase();
-        const cmd = `810F00000000${idx}${chunks[ci]},-`;
-        try{ await bridgeSend(cmd); }catch(e){ console.error('chunk send err', e); }
-        await sleep(perChunkDelayMs);
+        // send chunks numbered 1..N
+        const start = Date.now();
+        for(let ci=0; ci<chunks.length; ci++){
+          const idx = (ci+1).toString(16).padStart(2,'0').toUpperCase();
+          const cmd = `810F00000000${idx}${chunks[ci]},-`;
+          try{ await bridgeSend(cmd); }catch(e){ console.error('chunk send err', e); }
+          await sleep(perChunkDelayMs);
+        }
+
+        // post-frame commit/reset to force apply
+        try{ await bridgeSend('8110,-'); }catch(e){}
+
+        // ensure at least perFrameDelayMs since start
+        const elapsed = Date.now() - start;
+        const wait = Math.max(perFrameDelayMs, 0) - Math.max(0, elapsed - (perChunkDelayMs*chunks.length));
+        if(wait>0) await sleep(wait);
+
+        setStatus(`Frame ${fi+1}/${frames.length} enviado`);
       }
 
-      // post-frame commit/reset to force apply
-      try{ await bridgeSend('8110,-'); }catch(e){}
-
-      // ensure at least perFrameDelayMs since start
-      const elapsed = Date.now() - start;
-      const wait = Math.max(perFrameDelayMs, 0) - Math.max(0, elapsed - (perChunkDelayMs*chunks.length));
-      if(wait>0) await sleep(wait);
-
-      setStatus(`Frame ${fi+1}/${frames.length} enviado`);
+      setStatus('Envío conservador completado.');
+    } finally {
+      window._transferInProgress = false;
     }
-
-    setStatus('Envío conservador completado.');
   };
 
   // attach to sendBtn to use conservative defaults
@@ -852,24 +875,29 @@
 
   // Public API: transferCurrentAnimationUltimate
   window.transferCurrentAnimationUltimate = async function(options){
-    options = options || {};
-    const perChunkDelay = options.perChunkDelay || 80;
-    const perFrameDelay = options.perFrameDelay || 120;
-    // gather frames
-    let frames = [];
-    if(Array.isArray(window.lastFrames) && window.lastFrames.length>0) frames = window.lastFrames.slice();
-    else if(window.MIS_ANIMATIONS){ const k=Object.keys(window.MIS_ANIMATIONS)[0]; if(k) frames = window.MIS_ANIMATIONS[k].slice(); }
-    if(!frames || frames.length===0){ setStatus('No hay frames para enviar.'); return; }
+    try {
+      window._transferInProgress = true;
+      options = options || {};
+      const perChunkDelay = options.perChunkDelay || 80;
+      const perFrameDelay = options.perFrameDelay || 120;
+      // gather frames
+      let frames = [];
+      if(Array.isArray(window.lastFrames) && window.lastFrames.length>0) frames = window.lastFrames.slice();
+      else if(window.MIS_ANIMATIONS){ const k=Object.keys(window.MIS_ANIMATIONS)[0]; if(k) frames = window.MIS_ANIMATIONS[k].slice(); }
+      if(!frames || frames.length===0){ setStatus('No hay frames para enviar.'); return; }
 
-    // Normalize frames to hex strings of length FRAME_BYTES*2
-    frames = frames.map(f=>padToFrame(f));
+      // Normalize frames to hex strings of length FRAME_BYTES*2
+      frames = frames.map(f=>padToFrame(f));
 
-    // Run official single-mode first (zero), then auto if needed
-    try{
-      setStatus('Enviando en modo oficial (0..15)');
-      await sendAnimationWithMode(frames, 'zero', perChunkDelay, perFrameDelay);
-      setStatus('Modo oficial completado. Si no funciona, ejecutar autoTryAllModes con más opciones.');
-    }catch(err){ console.error('transfer error',err); setStatus('Error durante envio: '+(err&&err.message)); }
+      // Run official single-mode first (zero), then auto if needed
+      try{
+        setStatus('Enviando en modo oficial (0..15)');
+        await sendAnimationWithMode(frames, 'zero', perChunkDelay, perFrameDelay);
+        setStatus('Modo oficial completado. Si no funciona, ejecutar autoTryAllModes con más opciones.');
+      }catch(err){ console.error('transfer error',err); setStatus('Error durante envio: '+(err&&err.message)); }
+    } finally {
+      window._transferInProgress = false;
+    }
   };
 
   // convenience: attach to sendBtn (will call transferCurrentAnimationUltimate with conservative defaults)
@@ -903,45 +931,50 @@
 
   // Single-shot bulk upload: open once, send all frames, then commit once.
   window.transferBulkFramesSingleShot = async function(opts){
-    opts = opts || {};
-    const perChunkDelay = typeof opts.perChunkDelay === 'number' ? opts.perChunkDelay : 80;
-    const perFinalDelay = typeof opts.perFinalDelay === 'number' ? opts.perFinalDelay : 200;
+    try {
+      window._transferInProgress = true;
+      opts = opts || {};
+      const perChunkDelay = typeof opts.perChunkDelay === 'number' ? opts.perChunkDelay : 80;
+      const perFinalDelay = typeof opts.perFinalDelay === 'number' ? opts.perFinalDelay : 200;
 
-    // fetch frames
-    let frames = [];
-    if(Array.isArray(window.lastFrames) && window.lastFrames.length>0) frames = window.lastFrames.slice();
-    else if(window.MIS_ANIMATIONS){ const k=Object.keys(window.MIS_ANIMATIONS)[0]; if(k) frames = window.MIS_ANIMATIONS[k].slice(); }
-    if(!frames || frames.length===0){ setStatus('No hay frames para enviar.'); return; }
+      // fetch frames
+      let frames = [];
+      if(Array.isArray(window.lastFrames) && window.lastFrames.length>0) frames = window.lastFrames.slice();
+      else if(window.MIS_ANIMATIONS){ const k=Object.keys(window.MIS_ANIMATIONS)[0]; if(k) frames = window.MIS_ANIMATIONS[k].slice(); }
+      if(!frames || frames.length===0){ setStatus('No hay frames para enviar.'); return; }
 
-    // pad frames to 2048 bytes
-    frames = frames.map(f=>padToFrame(f));
-    const numFrames = frames.length;
-    const e_hex = (numFrames-1).toString(16).toUpperCase().padStart(4,'0');
+      // pad frames to 2048 bytes
+      frames = frames.map(f=>padToFrame(f));
+      const numFrames = frames.length;
+      const e_hex = (numFrames-1).toString(16).toUpperCase().padStart(4,'0');
 
-    setStatus(`Bulk upload: frames=${numFrames} perChunkDelay=${perChunkDelay}ms`);
+      setStatus(`Bulk upload: frames=${numFrames} perChunkDelay=${perChunkDelay}ms`);
 
-    // OPEN door once - use 8110,- as prep (matches native behavior in many places)
-    lowLevelSend('8110,-');
-    await sleep(150);
+      // OPEN door once - use 8110,- as prep (matches native behavior in many places)
+      lowLevelSend('8110,-');
+      await sleep(150);
 
-    for(let f=0; f<numFrames; f++){
-      const F_hex = (f).toString(16).toUpperCase().padStart(4,'0');
-      const chunks = buildChunksFromFrameHex(frames[f]);
-      setStatus(`Bulk: enviando frame ${f+1}/${numFrames} (${chunks.length} chunks)`);
-      for(let ci=0; ci<chunks.length; ci++){
-        const part_hex = F7(ci); // parts 0..15
-        const cmd = `810F${e_hex}${F_hex}${part_hex}${chunks[ci]},-`;
-        lowLevelSend(cmd);
-        await sleep(perChunkDelay);
+      for(let f=0; f<numFrames; f++){
+        const F_hex = (f).toString(16).toUpperCase().padStart(4,'0');
+        const chunks = buildChunksFromFrameHex(frames[f]);
+        setStatus(`Bulk: enviando frame ${f+1}/${numFrames} (${chunks.length} chunks)`);
+        for(let ci=0; ci<chunks.length; ci++){
+          const part_hex = F7(ci); // parts 0..15
+          const cmd = `810F${e_hex}${F_hex}${part_hex}${chunks[ci]},-`;
+          lowLevelSend(cmd);
+          await sleep(perChunkDelay);
+        }
       }
+
+      // FINAL commit/close once
+      setStatus('Bulk: enviando commit final...');
+      lowLevelSend('8110,-');
+      await sleep(perFinalDelay);
+
+      setStatus('Bulk upload completado. Revisa la OLED.');
+    } finally {
+      window._transferInProgress = false;
     }
-
-    // FINAL commit/close once
-    setStatus('Bulk: enviando commit final...');
-    lowLevelSend('8110,-');
-    await sleep(perFinalDelay);
-
-    setStatus('Bulk upload completado. Revisa la OLED.');
   };
 
   // Attach send button to bulk single-shot by default

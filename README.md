@@ -95,6 +95,7 @@ Debido a estas modificaciones, algunos motores de análisis pueden detectar dife
 - v1.14 — Se agregan logos y se reorganiza la estructura de archivos.
 - v1.15 — Se agregan nuevas pestañas para futuros diseños y un botón de prueba para conocer el límite de frames soportados.
 - v1.16 — Se agregan nuevos diseños y se reorganiza la estructura de archivos.
+- v1.17 — Se agrega un selector de fondos.
 
 
 ---

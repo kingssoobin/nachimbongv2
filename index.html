@@ -31,16 +31,26 @@
         </div>
     </div>
 
-    <!-- Barra de pestañas -->
+    <!-- Botón principal de fondos -->
+    <button class="tab-item tab-fondo-hero" data-tab="fondos" onclick="switchTab('fondos', this)">FONDO</button>
+
+    <!-- Pestaña: FONDOS DE PANTALLA (aparece justo debajo del botón grande) -->
+    <div class="card tab-panel" id="tab-fondos">
+        <div id="wallpaper-selector">
+            <!-- El contenido se genera dinámicamente por wallpaper-selector.js -->
+        </div>
+    </div>
+
+    <!-- Barra de pestañas secundarias -->
     <div class="tab-bar">
         <button class="tab-item active" data-tab="texto" onclick="switchTab('texto', this)">ESCRIBIR<br>TEXTO</button>
         <button class="tab-item" data-tab="emojis" onclick="switchTab('emojis', this)">SELECTOR<br>DE EMOJIS</button>
         <button class="tab-item" data-tab="mexa" onclick="switchTab('mexa', this)">ANIMACIÓN<br>MEXA</button>
         <button class="tab-item" data-tab="an01" onclick="switchTab('an01', this)">ANIMACIÓN<br>CON MARACAS</button>
         <button class="tab-item" data-tab="logos" onclick="switchTab('logos', this)">STRAY<br>KIDS</button>
-        <button class="tab-item" data-tab="logos" onclick="switchTab('casitas', this)">ANIMACIÓN<br>CON CASITAS</button>
-        <button class="tab-item" data-tab="logos" onclick="switchTab('corazones', this)">ANIMACIÓN<br>EN CORAZONES</button>
-        <button class="tab-item" data-tab="logos" onclick="switchTab('stay', this)">STAY</button>
+        <button class="tab-item" data-tab="casitas" onclick="switchTab('casitas', this)">ANIMACIÓN<br>CON CASITAS</button>
+        <button class="tab-item" data-tab="corazones" onclick="switchTab('corazones', this)">ANIMACIÓN<br>EN CORAZONES</button>
+        <button class="tab-item" data-tab="stay" onclick="switchTab('stay', this)">STAY</button>
     </div>
 
     <!-- Pestaña: ESCRIBIR TEXTO -->
@@ -263,7 +273,7 @@
           <button id="show Btn" class="font-btn">Mostrar 9</button>
           <button id="send Btn" class="font-btn">Enviar 9</button>   -->       
         </div>
-    </div>      
+    </div>
 
     <!-- Controles globales (siempre visibles) -->
     <div class="send-card">
@@ -320,6 +330,9 @@
 <script src="anim/stay/stayangel.js"></script> 
 
 <script src="anim/prueba/numero10.js"></script> 
+
+<!-- wallpaper selector -->
+<script src="wallpaper-selector.js"></script>
 
 <!-- app logic -->
 <script src="conect.js"></script>
