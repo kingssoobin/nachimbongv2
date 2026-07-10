@@ -149,7 +149,12 @@
             if (opcion.id === opcionActiva) btn.classList.add('active');
 
             btn.addEventListener('click', () => {
-                opcionActiva = opcion.id;
+                // Toggle: si la opción ya está activa, cerrarla
+                if (opcionActiva === opcion.id) {
+                    opcionActiva = null;
+                } else {
+                    opcionActiva = opcion.id;
+                }
                 renderizarOpcionesCategoria();
                 renderizarGrid();
             });
@@ -159,18 +164,35 @@
     }
 
     function setCategoria(categoria) {
-        categoriaActiva = categoria;
-        opcionActiva = catalogo[categoria].opciones[0]?.id || null;
+        // Toggle: si la categoría ya está activa, cerrarla
+        if (categoriaActiva === categoria) {
+            categoriaActiva = null;
+            opcionActiva = null;
+            
+            const titulo = document.getElementById('wallpaper-section-title');
+            if (titulo) {
+                titulo.textContent = '';
+                titulo.classList.remove('visible');
+            }
 
-        const titulo = document.getElementById('wallpaper-section-title');
-        if (titulo) {
-            titulo.textContent = catalogo[categoria].titulo;
-            titulo.classList.add('visible');
+            document.querySelectorAll('.wallpaper-category-btn').forEach((btn) => {
+                btn.classList.remove('active');
+            });
+        } else {
+            // Abrir la nueva categoría
+            categoriaActiva = categoria;
+            opcionActiva = catalogo[categoria].opciones[0]?.id || null;
+
+            const titulo = document.getElementById('wallpaper-section-title');
+            if (titulo) {
+                titulo.textContent = catalogo[categoria].titulo;
+                titulo.classList.add('visible');
+            }
+
+            document.querySelectorAll('.wallpaper-category-btn').forEach((btn) => {
+                btn.classList.toggle('active', btn.dataset.category === categoria);
+            });
         }
-
-        document.querySelectorAll('.wallpaper-category-btn').forEach((btn) => {
-            btn.classList.toggle('active', btn.dataset.category === categoria);
-        });
 
         renderizarOpcionesCategoria();
         renderizarGrid();
