@@ -131,7 +131,6 @@ input[type="range"] { flex: 1; accent-color: var(--acc); }
     min-height: 60px; border: 1px dashed var(--border);
     overflow-y: auto; max-height: 100px;
 }
-
 .note {
     display: flex; justify-content: space-between; font-size: 12px;
     color: var(--text-mut); margin-bottom: 1px; font-family: monospace;

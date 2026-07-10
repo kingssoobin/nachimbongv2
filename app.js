@@ -1155,6 +1155,10 @@
     { name: 'runit', showBtnId: 'showRunItBtn', sendBtnId: 'sendRunItBtn' },
     { name: 'sclass', showBtnId: 'showsclassBtn', sendBtnId: 'sendsclassBtn' },
     { name: 'straycity', showBtnId: 'showstraycityBtn', sendBtnId: 'sendstraycityBtn' },
+    { name: 'venom', showBtnId: 'showvenomBtn', sendBtnId: 'sendvenomBtn' },
+
+    { name: 'ymsks', showBtnId: 'showymsksBtn', sendBtnId: 'sendymsksBtn' },
+    { name: 'stayangel', showBtnId: 'showstayangelBtn', sendBtnId: 'sendstayangelBtn' },
 
     { name: 'numero10', showBtnId: 'shownumero10Btn', sendBtnId: 'sendnumero10Btn' }
   ];
