@@ -210,7 +210,6 @@
 
             <br>
             <div id="wallpaper-submenu" class="wallpaper-submenu"></div>
-
             <div id="wallpaper-empty" class="wallpaper-empty">Selecciona una categoría y colección para ver fondos.</div>
             <div id="wallpaper-grid" class="wallpaper-grid"></div>
         `;

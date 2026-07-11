@@ -1195,6 +1195,7 @@
 
     { name: 'ymsks', showBtnId: 'showymsksBtn', sendBtnId: 'sendymsksBtn' },
     { name: 'stayangel', showBtnId: 'showstayangelBtn', sendBtnId: 'sendstayangelBtn' },
+    { name: 'tasy', showBtnId: 'showtasyBtn', sendBtnId: 'sendtasyBtn' },
 
     { name: 'numero10', showBtnId: 'shownumero10Btn', sendBtnId: 'sendnumero10Btn' }
   ];
