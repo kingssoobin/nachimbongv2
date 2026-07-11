@@ -590,7 +590,7 @@
     document.body.appendChild(fixBtn);
 
     let modeIdx = 0;
-    const modes = ['standard', 'rows', 'transpose', 'revbit', 'invert'];
+    const modes = ['standard', 'invert'];
 
     fixBtn.onclick = () => {
       modeIdx = (modeIdx + 1) % modes.length;
