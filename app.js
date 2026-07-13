@@ -1194,6 +1194,7 @@
     { name: 'maxident', showBtnId: 'showmaxidentBtn', sendBtnId: 'sendmaxidentBtn' },
     { name: 'tasylogo', showBtnId: 'showtasylogoBtn', sendBtnId: 'sendtasylogoBtn' },
     { name: 'thisandthat', showBtnId: 'showthisandthatBtn', sendBtnId: 'sendthisandthatBtn' },    
+    { name: 'runit2', showBtnId: 'showrunit2Btn', sendBtnId: 'sendrunit2Btn' },        
 
     { name: 'ymsks', showBtnId: 'showymsksBtn', sendBtnId: 'sendymsksBtn' },
     { name: 'stayangel', showBtnId: 'showstayangelBtn', sendBtnId: 'sendstayangelBtn' },

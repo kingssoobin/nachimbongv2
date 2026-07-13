@@ -12,7 +12,8 @@
     // Galerías base
     const galerias = {
         // Giras
-        runit: crearGaleria('wallpaper/Giras/RUNIT/Seoul', 33, 'rits'),
+        rits: crearGaleria('wallpaper/Giras/RUNIT/Seoul', 33, 'rits'),
+        rimc: crearGaleria('wallpaper/Giras/RUNIT/Merch', 17, 'rimc'),
         mane: crearGaleria('wallpaper/Giras/Maniac/Encore', 9, 'mane'),
         manj: crearGaleria('wallpaper/Giras/Maniac/Japan', 9, 'manj'),
         mans: crearGaleria('wallpaper/Giras/Maniac/Seoul', 9, 'mans'),
@@ -45,7 +46,7 @@
                 {
                     id: 'runit',
                     label: 'RUN IT',
-                    imagenes: galerias.runit
+                    imagenes: [...galerias.rits, ...galerias.rimc]
                 },
                 {
                     id: 'maniac',
