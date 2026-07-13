@@ -584,10 +584,10 @@
     setTimeout(() => { try{ initBT(); }catch(e){} }, 1000);
 
     // Botón mágico para arreglar la vista previa en el celular
-    const fixBtn = document.createElement('button');
+    /*const fixBtn = document.createElement('button');
     fixBtn.innerText = "🔄 Cambiar Modo Vista";
     fixBtn.style = "position:fixed; bottom:10px; right:10px; z-index:9999; padding:10px; background:#ff9600; color:white; border-radius:5px; border:none;";
-    document.body.appendChild(fixBtn);
+    document.body.appendChild(fixBtn);*/
 
     let modeIdx = 0;
     const modes = ['standard', 'invert'];
