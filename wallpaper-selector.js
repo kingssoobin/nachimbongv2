@@ -12,7 +12,7 @@
     // Galerías base
     const galerias = {
         // Giras
-        rits: crearGaleria('wallpaper/Giras/RUNIT/Seoul', 33, 'rits'),
+        rits: crearGaleria('wallpaper/Giras/RUNIT/Seoul', 34, 'rits'),
         rimc: crearGaleria('wallpaper/Giras/RUNIT/Merch', 17, 'rimc'),
         mane: crearGaleria('wallpaper/Giras/Maniac/Encore', 9, 'mane'),
         manj: crearGaleria('wallpaper/Giras/Maniac/Japan', 9, 'manj'),
