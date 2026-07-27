@@ -9,7 +9,7 @@
     --acc-glow: rgba(255,255,255,0.18);
     --border: #331f1f27;
     --text: #ffff;
-    --text-mut: #ab8a8a98;
+    --text-mut: #ffffff93;
     --danger: #ff4d4d98;
     
     /* Glassmorphism values */
@@ -619,7 +619,7 @@ input[type="range"] {
     border-radius: 8px;
     font-family: monospace;
     font-size: 11px;
-    color: #ff5e5e;
+    color: #ffffff;
     min-height: 60px;
     border: 1px dashed var(--border);
     overflow-y: auto;
@@ -631,7 +631,7 @@ input[type="range"] {
     justify-content: space-between;
     font-size: 12px;
     color: var(--text-mut);
-    margin-bottom: 1px;
+    margin-bottom: 2px;
     font-family: monospace;
 }
 
