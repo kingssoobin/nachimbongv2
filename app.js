@@ -1197,6 +1197,7 @@
     { name: 'runit2', showBtnId: 'showrunit2Btn', sendBtnId: 'sendrunit2Btn' },        
 
     { name: 'ymsks', showBtnId: 'showymsksBtn', sendBtnId: 'sendymsksBtn' },
+    { name: 'skzw', showBtnId: 'showskzwBtn', sendBtnId: 'sendskzwBtn' },
     { name: 'stayangel', showBtnId: 'showstayangelBtn', sendBtnId: 'sendstayangelBtn' },
     { name: 'tasy', showBtnId: 'showtasyBtn', sendBtnId: 'sendtasyBtn' },
 
